@@ -37,7 +37,16 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 To test connection to mongo db use this file path ; http://localhost:3000/api/Mongo-DB/test-db-connection
 
 
-💳 Stripe Integration (Stripe Elements – Accessible Setup)
+## License & Usage
+
+This project is licensed under the MIT License.
+
+**Intended use:**  
+This repository is primarily for **personal learning**, demonstrating **accessible coding pipelines**, and showcasing code during **interviews or screen shares**.  
+
+While the MIT License allows others to copy, modify, and distribute the code, please note that this project is **not intended for commercial use** without prior permission.
+
+ Stripe Integration (Stripe Elements – Accessible Setup)
 
 This project uses Stripe Elements from Stripe instead of Stripe Checkout to provide:
 
@@ -53,10 +62,10 @@ Consistent on-site experience
 
 Stripe Elements allows secure payment collection directly within the product page.
 
-1️⃣ Install Dependencies
+ Install Dependencies
 npm install stripe @stripe/react-stripe-js @stripe/stripe-js
 
-2️⃣ Environment Variables
+ Environment Variables
 
 Create or update .env.local:
 
