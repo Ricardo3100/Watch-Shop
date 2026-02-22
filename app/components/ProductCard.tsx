@@ -3,44 +3,34 @@
 import Link from "next/link";
 import { useStateContext } from "../context/statecontext";
 
-export default function ProductCard({ product }: any) {
+export default function ProductCard({ product }) {
   const { onAdd } = useStateContext();
 
   return (
-    <div className="relative h-80 rounded-xl overflow-hidden transition-transform duration-300 hover:scale-[1.02]">
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          backgroundImage: `url(${product.image})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
+    <div className="border p-4">
+      {/* Clickable Area */}
+      <Link href={`/product/${product._id}`}>
+        <div className="cursor-pointer">
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-60 object-cover"
+          />
 
-      {/* Dark Bottom Gradient */}
-      <div className="absolute bottom-0 left-0 right-0 h-36 z-10 bg-gradient-to-t from-black/95 via-black/70 to-transparent" />
+          <h3 className="mt-4 font-semibold">{product.name}</h3>
+          
+          <p className="text-gray-600">${product.price}</p>
+          <p className="text-gray-600">{product.stock} in stock</p>
+        </div>
+      </Link>
 
-      {/* Bottom Content */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 p-6 text-center">
-        <h3 className="text-xl font-bold text-white">{product.name}</h3>
-        <p className="mt-2 text-lg font-semibold text-white">
-          ${product.price}
-        </p>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation(); // Prevent triggering the Link
-            onAdd(product, 1); // Add to cart
-          }}
-          className="mt-4 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-neutral-800"
-        >
-          Add to Cart
-        </button>
-      </div>
-
-      {/* Clickable Link */}
-      <Link href={`/product/${product._id}`} className="absolute inset-0 z-0" />
+      {/* Button (Not Inside Link) */}
+      <button
+        onClick={() => onAdd(product, 1)}
+        className="mt-3 bg-black text-white px-4 py-2 w-full"
+      >
+        Add to Cart
+      </button>
     </div>
   );
 }

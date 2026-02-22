@@ -10,8 +10,8 @@ const Footer = () => {
         [Ricardo Rodriguez En-visioning Solutions].{" "}
       </p>
       <p className="text-sm text-center px-2 md:px-2 py-1 md:py-1">
-        &copy; 2024
-        {new Date().getFullYear() > 2024
+        &copy; 2026
+        {new Date().getFullYear() > 2026
           ? `–${new Date().getFullYear()}`
           : ""}{" "}
       </p>

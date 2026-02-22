@@ -7,7 +7,7 @@ export default async function CategoryPage(props: any) {
 
   const products = await ProductDAO.getAll();
 
-  const filteredProducts = products.filter((p: any) => p.category === slug);
+  const filteredProducts = products.filter((products: any) => products.category === slug);
 
   return (
     <section className="w-full py-12">
@@ -19,7 +19,7 @@ export default async function CategoryPage(props: any) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {filteredProducts.map((product: any) => (
             <Link
-              href={`/product/${product._id}`}
+              href={`/products/${product._id}`}
               key={product._id.toString()}
               className="block"
             >
@@ -36,12 +36,14 @@ export default async function CategoryPage(props: any) {
                 <div className="relative z-10 w-full bg-black/90 p-6">
                   <h2 className="text-xl font-bold text-white">
                     {product.name}
+                    
                   </h2>
                   <p className="mt-2 text-lg font-semibold text-white">
                     ${product.price}
                   </p>
                 </div>
               </div>
+              
             </Link>
           ))}
         </div>

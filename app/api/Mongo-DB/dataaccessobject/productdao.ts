@@ -52,12 +52,19 @@ export default class ProductDAO {
    * - Makes future refactoring easier
    */
   private static async collection() {
+    // Step 1: Read DB name from env
+    const dbName = process.env.Mongo_DB_Name;
+    if (!dbName) {
+      throw new Error("Please define the Mongo_DB_NAME environment variable");
+    }
+
+    // Step 2: Get the Mongo client
     const client = await clientPromise;
 
-    // Replace "ecommerce" with your actual DB name if different
-    const db = client.db("ecommerce");
+    // Step 3: Get the database object
+    const db = client.db(dbName);
 
-    // "products" is the collection name in MongoDB
+    // Step 4: Return the collection
     return db.collection<Product>("products");
   }
 

@@ -7,7 +7,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { useState } from "react";
 
-export default function CheckoutForm() {
+export default function CheckoutForm({ total }) {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
@@ -39,10 +39,10 @@ export default function CheckoutForm() {
       <PaymentElement />
 
       <button
-        disabled={loading}
         className="w-full bg-black text-white py-3 rounded-lg text-lg font-semibold focus:outline-none focus:ring-4 focus:ring-black"
+        disabled={loading}
       >
-        {loading ? "Processing..." : "Pay Now"}
+        {loading ? "Processing..." : `You will be charged a total of $${total.toFixed(2)}`}
       </button>
 
       {message && <p className="text-red-600 font-semibold">{message}</p>}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AiOutlineMinus, AiOutlinePlus, AiOutlineLeft, AiOutlineShopping } from "react-icons/ai";
 import { TiDeleteOutline } from "react-icons/ti";
 import { useStateContext } from "../context/statecontext";
+import { useRouter } from "next/navigation";
 
 const Cart = () => {
   const cartRef = useRef();
@@ -16,6 +17,7 @@ const Cart = () => {
     toggleCartItemQuantity,
     onRemove,
   } = useStateContext();
+const router = useRouter();
 
   const eUSLocale = (x) => x.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 
@@ -34,16 +36,24 @@ const Cart = () => {
       >
         {/* Header */}
         <div className="cart-heading flex items-center p-4 border-b">
-          <AiOutlineLeft size={20} onClick={() => setShowCart(false)} className="cursor-pointer" />
+          <AiOutlineLeft
+            size={20}
+            onClick={() => setShowCart(false)}
+            className="cursor-pointer"
+          />
           <span className="ml-2 font-semibold text-lg">Your Cart</span>
-          <span className="ml-auto text-gray-500">({totalQuantities} items)</span>
+          <span className="ml-auto text-gray-500">
+            ({totalQuantities} items)
+          </span>
         </div>
 
         {/* Empty Cart */}
         {cartItems.length < 1 && (
           <div className="empty-cart flex flex-col items-center justify-center flex-1 text-center px-4 py-10">
             <AiOutlineShopping size={120} className="text-gray-300" />
-            <h3 className="mt-4 text-xl font-medium">Your shopping bag is empty</h3>
+            <h3 className="mt-4 text-xl font-medium">
+              Your shopping cart is empty
+            </h3>
             <Link href="/">
               <button
                 type="button"
@@ -61,7 +71,10 @@ const Cart = () => {
           <div className="product-container flex-1 overflow-y-auto p-4 space-y-4">
             {cartItems.map((item) => (
               <div key={item._id} className="product flex items-center gap-4">
-                <button onClick={() => onRemove(item)} className="remove-item text-red-500">
+                <button
+                  onClick={() => onRemove(item)}
+                  className="remove-item text-red-500"
+                >
                   <TiDeleteOutline size={20} />
                 </button>
 
@@ -87,6 +100,7 @@ const Cart = () => {
                       <AiOutlineMinus />
                     </button>
                     <span>{item.quantity}</span>
+                    {/* trigger cart item quantity functuon here */}
                     <button
                       onClick={() => toggleCartItemQuantity(item._id, "inc")}
                       className="px-2 py-1 border rounded"
@@ -107,7 +121,14 @@ const Cart = () => {
               <span>Subtotal:</span>
               <span>${eUSLocale(totalPrice)}</span>
             </div>
-            <button className="mt-4 w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+            <button
+              onClick={() => {
+                setShowCart(false);
+                // on success redirect to check out page
+                router.push("/checkout");
+              }}
+              className="mt-4 w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
+            >
               Checkout
             </button>
           </div>

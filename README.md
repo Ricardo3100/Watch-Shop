@@ -46,311 +46,339 @@ This repository is primarily for **personal learning**, demonstrating **accessib
 
 While the MIT License allows others to copy, modify, and distribute the code, please note that this project is **not intended for commercial use** without prior permission.
 
- Stripe Integration (Stripe Elements – Accessible Setup)
+ Stripe Payments — Baby Version (Rebuild From Nothing Guide)
 
-This project uses Stripe Elements from Stripe instead of Stripe Checkout to provide:
+Imagine this:
 
-Full accessibility control
+A customer wants to give you money.
 
-AAA contrast customization
+You cannot touch their card.
 
-Inline payment (no redirect)
+Stripe is the trusted adult in the room.
 
-Keyboard and screen reader support
+Your job is just to:
 
-Consistent on-site experience
+Tell Stripe how much money.
 
-Stripe Elements allows secure payment collection directly within the product page.
+Let Stripe collect the card.
 
- Install Dependencies
-npm install stripe @stripe/react-stripe-js @stripe/stripe-js
+Ask Stripe to finish the payment.
 
- Environment Variables
+That’s it.
 
-Create or update .env.local:
+Everything in this folder exists to do those 3 things.
 
-NEXT_PUBLIC_STRIPE_PUBLIC_KEY=pk_test_...
-STRIPE_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
+Big Picture First (So You Don’t Get Lost)
 
-Important
+When someone clicks “Pay”, this happens:
 
-NEXT_PUBLIC_STRIPE_PUBLIC_KEY is safe for frontend use.
+Your server says:
 
-STRIPE_SECRET_KEY must never be exposed to the client.
+“Stripe, I want to charge $240.”
 
-Restart the dev server after updating environment variables.
+Stripe says:
 
-3️⃣ Stripe Loader
+“Okay. Here’s a secret code for that payment.”
 
-File: lib/getStripe.ts
+Your browser uses that secret code to safely collect card details.
 
-import { loadStripe, Stripe } from "@stripe/stripe-js";
+Stripe charges the card.
 
-let stripePromise: Promise<Stripe | null>;
+Stripe sends the user to the success page.
 
-const getStripe = () => {
-  if (!stripePromise) {
-    stripePromise = loadStripe(
-      process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY as string
-    );
-  }
-  return stripePromise;
-};
+That’s the whole system.
 
-export default getStripe;
+If anything breaks, it’s because one of those 5 steps broke.
 
-4️⃣ Create Payment Intent API Route
+The Two Worlds
 
-File: app/api/create-payment-intent/route.ts
+There are two worlds in this app:
 
-import { NextResponse } from "next/server";
+World 1: Server (safe world)
+World 2: Browser (unsafe world)
+
+Important rule:
+
+The browser is not trusted.
+
+The server is trusted.
+
+Money math must happen in the trusted world.
+
+Step 1 — The Secret Keys (The Keys to the House)
+
+Stripe gives you two keys.
+
+They look like this:
+
+Public key:
+
+pk_test_...
+
+
+Secret key:
+
+sk_test_...
+
+
+Public key:
+
+Goes in the browser
+
+Safe to show
+
+Secret key:
+
+ONLY on the server
+
+If leaked, someone can charge cards
+
+So we store them in .env.local.
+
+If Stripe says:
+
+“Publishable key undefined”
+
+It means your public key is missing or misspelled.
+
+Step 2 — The Most Important File
+
+createPaymentIntent.ts
+
+This is the brain.
+
+This file runs on the server.
+
+Its job is:
+
+Look at the cart.
+
+Add up the total.
+
+Multiply by 100 (Stripe wants cents).
+
+Ask Stripe to create a PaymentIntent.
+
+Return the secret code.
+
+Example:
+
+"use server";
+
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2024-06-20",
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+export async function createPaymentIntent(cartItems) {
+
+  // Step 1: Add up money
+  const total = cartItems.reduce((acc, item) => {
+    return acc + item.price * item.quantity;
+  }, 0);
+
+  // Step 2: Convert dollars to cents
+  const amount = Math.round(total * 100);
+
+  // Step 3: Tell Stripe
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount,
+    currency: "usd",
+    automatic_payment_methods: { enabled: true },
+  });
+
+  // Step 4: Give browser the secret
+  return paymentIntent.client_secret;
+}
+
+
+If Stripe dashboard shows wrong amount:
+
+It is because THIS math is wrong.
+
+Not Stripe.
+
+Always check this file first.
+
+Step 3 — Why Multiply by 100?
+
+Stripe speaks cents.
+
+You speak dollars.
+
+$240.00
+Stripe wants 24000.
+
+If you forget this:
+Your payment will be wrong.
+
+Step 4 — The Browser Needs Permission
+
+Stripe does not let the browser collect card info without permission.
+
+The permission is the client_secret.
+
+That secret says:
+
+“This browser is allowed to complete THIS specific payment.”
+
+Without it, nothing works.
+
+That is why we must:
+
+Call createPaymentIntent
+
+Save the returned secret
+
+Pass it into <Elements>
+
+Step 5 — Stripe Wrapper
+
+Stripe requires this:
+
+<Elements stripe={...} options={{ clientSecret }}>
+   <CheckoutForm />
+</Elements>
+
+
+Why?
+
+Because Stripe injects magic into everything inside <Elements>.
+
+If you remove it:
+
+useStripe() will be null
+
+PaymentElement won’t work
+
+Confirm payment fails
+
+This wrapper is not optional.
+
+Step 6 — The Checkout Form
+
+This is the only thing the user sees.
+
+<PaymentElement />
+
+
+That component:
+
+Shows card input
+
+Handles validation
+
+Handles fraud
+
+Handles 3D secure
+
+Sends card data directly to Stripe
+
+Your server NEVER sees the card.
+
+Then this runs:
+
+stripe.confirmPayment({
+  elements,
+  confirmParams: {
+    return_url: "/success"
+  }
 });
 
-export async function POST(req: Request) {
-  try {
-    const { amount } = await req.json();
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: "usd",
-      automatic_payment_methods: { enabled: true },
-    });
-
-    return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Payment intent failed" },
-      { status: 500 }
-    );
-  }
-}
 
-Note
+That line means:
 
-Stripe expects amounts in cents:
+“Stripe, finish the payment now.”
 
-$49.99 → 4999
-
-$120.00 → 12000
-
-5️⃣ Stripe Wrapper Component
-
-File: components/StripeWrapper.tsx
-
-"use client";
-
-import { Elements } from "@stripe/react-stripe-js";
-import getStripe from "@/lib/getStripe";
-
-export default function StripeWrapper({ clientSecret, children }: any) {
-  return (
-    <Elements stripe={getStripe()} options={{ clientSecret }}>
-      {children}
-    </Elements>
-  );
-}
-
-6️⃣ Checkout Form Component
+That’s it.
 
-File: components/CheckoutForm.tsx
+You are not charging manually.
+Stripe is.
 
-"use client";
+Step 7 — The Success Page
 
-import {
-  PaymentElement,
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
-import { useState } from "react";
+When payment is done, Stripe redirects to:
 
-export default function CheckoutForm() {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+/success
 
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
 
-    if (!stripe || !elements) return;
+This page should:
 
-    setLoading(true);
+Clear the cart
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/success`,
-      },
-    });
+Show confirmation message
 
-    if (error) {
-      setMessage(error.message ?? "Payment failed");
-    }
+If you don’t clear cart:
+User might accidentally pay again.
 
-    setLoading(false);
-  };
+If Something Breaks
 
-  return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-      <PaymentElement />
+If clicking pay does nothing:
 
-      <button
-        disabled={loading}
-        className="w-full bg-black text-white py-3 rounded-lg text-lg font-semibold focus:outline-none focus:ring-4 focus:ring-black"
-      >
-        {loading ? "Processing..." : "Pay Now"}
-      </button>
+StripeWrapper missing
 
-      {message && (
-        <p className="text-red-600 font-semibold">
-          {message}
-        </p>
-      )}
-    </form>
-  );
-}
+clientSecret not loaded
 
-7️⃣ Product Checkout Component
+If amount wrong:
 
-File: components/ProductCheckout.tsx
+createPaymentIntent math wrong
 
-"use client";
+Forgot * 100
 
-import { useEffect, useState } from "react";
-import StripeWrapper from "./StripeWrapper";
-import CheckoutForm from "./CheckoutForm";
+Cart was empty when intent created
 
-export default function ProductCheckout({ price }: any) {
-  const [clientSecret, setClientSecret] = useState("");
+If publishable key undefined:
 
-  useEffect(() => {
-    fetch("/api/create-payment-intent", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ amount: price * 100 }),
-    })
-      .then((res) => res.json())
-      .then((data) => setClientSecret(data.clientSecret));
-  }, [price]);
+Missing NEXT_PUBLIC_
 
-  if (!clientSecret) return <p>Loading payment...</p>;
+If payment shows incomplete:
 
-  return (
-    <StripeWrapper clientSecret={clientSecret}>
-      <CheckoutForm />
-    </StripeWrapper>
-  );
-}
+You didn’t use Stripe test card
 
-8️⃣ Usage in Product Page
-import ProductCheckout from "@/components/ProductCheckout";
+The Entire Flow in One Sentence
 
-<ProductCheckout price={product.price} />
+Server creates payment.
+Browser completes payment.
+Stripe processes payment.
 
-🔐 Production Hardening Checklist
+That’s it.
 
-Before deploying to production, complete the following:
+If You Rebuild This In 10 Years
 
-1️⃣ Never Trust Frontend Price
+Do exactly this:
 
-Instead of sending price from frontend:
+Install stripe packages.
 
-Send productId
+Add env keys.
 
-Fetch product from database inside the API route
+Create server function to create PaymentIntent.
 
-Use the database price to create the PaymentIntent
+Calculate money on server.
 
-This prevents price manipulation.
+Multiply by 100.
 
-2️⃣ Implement Stripe Webhooks
+Return client_secret.
 
-Stripe webhooks are required to:
+Wrap checkout in <Elements>.
 
-Confirm successful payment
+Render <PaymentElement />.
 
-Store order in database
+Call stripe.confirmPayment().
 
-Update inventory
+Create success page.
 
-Trigger confirmation emails
+Clear cart.
 
-Recommended endpoint:
+If you follow those 11 steps, Stripe works.
 
-app/api/webhooks/stripe/route.ts
+Every time.
 
+The Only Three Rules That Matter
 
-Use Stripe’s webhook signing secret for verification.
+Never trust frontend for money.
 
-3️⃣ Validate Environment Variables in Production
+Always multiply by 100.
 
-Ensure production environment contains:
+Never expose secret key.
 
-NEXT_PUBLIC_STRIPE_PUBLIC_KEY
-STRIPE_SECRET_KEY
-NEXT_PUBLIC_BASE_URL
-
-
-Never commit .env.local.
-
-4️⃣ Enable HTTPS in Production
-
-Stripe requires HTTPS for live mode.
-
-Use:
-
-Vercel
-
-Railway
-
-Render
-
-Or another secure hosting provider
-
-5️⃣ Handle Payment States
-
-Add proper handling for:
-
-Success page
-
-Failed payments
-
-Canceled payments
-
-Loading states
-
-6️⃣ Test Using Stripe Test Cards
-
-Use Stripe test cards from their official documentation:
-
-Successful payment
-
-Declined payment
-
-3D Secure flow
-
-✅ Why Stripe Elements Was Chosen
-
-Stripe Elements was selected because:
-
-Provides full accessibility control
-
-Allows AAA contrast design
-
-Supports screen readers and keyboard navigation
-
-Keeps checkout inline (no redirect)
-
-Offers complete UI customization
-
-Stripe integration is now modular, reusable, and production-ready with hardening applied.
+If you remember those three, you will never break Stripe.
 

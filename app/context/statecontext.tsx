@@ -17,8 +17,10 @@ export interface Product {
   _id: string;
   name: string;
   price: number;
+  
   image?: any;
   quantity: number;
+  stock: number;
 }
 
 interface CartContextType {
@@ -28,7 +30,8 @@ interface CartContextType {
   totalPrice: number;
   totalQuantities: number;
   qty: number;
-  incQty: () => void;
+
+  incQty: (stock: number) => void;
   decQty: () => void;
   onAdd: (product: Product, quantity: number) => void;
   toggleCartItemQuantity: (id: string, value: "inc" | "dec") => void;
@@ -81,26 +84,35 @@ export const StateContext = ({ children }: { children: ReactNode }) => {
   /* ===============================
      ADD TO CART
   =============================== */
-  const onAdd = (product: Product, quantity: number) => {
-    const existingProduct = cartItems.find((item) => item._id === product._id);
+const onAdd = (product: Product, quantity: number) => {
+  const existingProduct = cartItems.find((item) => item._id === product._id);
 
-    setTotalPrice((prev) => prev + product.price * quantity);
-    setTotalQuantities((prev) => prev + quantity);
+  const currentQuantity = existingProduct ? existingProduct.quantity : 0;
 
-    if (existingProduct) {
-      const updatedCartItems = cartItems.map((item) =>
-        item._id === product._id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item,
-      );
+  // 🚨 STOCK CHECK
+  if (currentQuantity + quantity > product.stock) {
+    toast.error("Not enough stock available.");
+    return;
+  }
 
-      setCartItems(updatedCartItems);
-    } else {
-      setCartItems([...cartItems, { ...product, quantity }]);
-    }
+  setTotalPrice((prev) => prev + product.price * quantity);
+  setTotalQuantities((prev) => prev + quantity);
 
-    toast.success(`${quantity} ${product.name} added to the cart.`);
-  };
+  if (existingProduct) {
+    const updatedCartItems = cartItems.map((item) =>
+      item._id === product._id
+        ? { ...item, quantity: item.quantity + quantity }
+        : item,
+    );
+
+    setCartItems(updatedCartItems);
+  } else {
+    setCartItems([...cartItems, { ...product, quantity }]);
+  }
+
+  toast.success(`${quantity} ${product.name} added to the cart.`);
+};
+
 
   /* ===============================
      REMOVE
@@ -122,34 +134,49 @@ export const StateContext = ({ children }: { children: ReactNode }) => {
   /* ===============================
      TOGGLE QUANTITY
   =============================== */
-  const toggleCartItemQuantity = (id: string, value: "inc" | "dec") => {
-    const updatedCartItems = cartItems.map((item) => {
-      if (item._id === id) {
-        if (value === "inc") {
-          setTotalPrice((prev) => prev + item.price);
-          setTotalQuantities((prev) => prev + 1);
-
-          return { ...item, quantity: item.quantity + 1 };
+const toggleCartItemQuantity = (id: string, value: "inc" | "dec") => {
+  const updatedCartItems = cartItems.map((item) => {
+    if (item._id === id) {
+      if (value === "inc") {
+        // 🚨 STOCK CHECK
+        if (item.quantity >= item.stock) {
+          toast.error("Maximum stock reached");
+          return item;
         }
 
-        if (value === "dec" && item.quantity > 1) {
-          setTotalPrice((prev) => prev - item.price);
-          setTotalQuantities((prev) => prev - 1);
+        setTotalPrice((prev) => prev + item.price);
+        setTotalQuantities((prev) => prev + 1);
 
-          return { ...item, quantity: item.quantity - 1 };
-        }
+        return { ...item, quantity: item.quantity + 1 };
       }
 
-      return item;
-    });
+      if (value === "dec" && item.quantity > 1) {
+        setTotalPrice((prev) => prev - item.price);
+        setTotalQuantities((prev) => prev - 1);
 
-    setCartItems(updatedCartItems);
-  };
+        return { ...item, quantity: item.quantity - 1 };
+      }
+    }
+
+    return item;
+  });
+
+  setCartItems(updatedCartItems);
+};
+
 
   /* ===============================
      PRODUCT PAGE QTY
   =============================== */
-  const incQty = () => setQty((prev) => prev + 1);
+const incQty = (stock: number) => {
+  setQty((prev) => {
+    if (prev >= stock) {
+      toast.error("No more stock available.");
+      return prev;
+    }
+    return prev + 1;
+  });
+};
 
   const decQty = () => setQty((prev) => (prev - 1 < 1 ? 1 : prev - 1));
 

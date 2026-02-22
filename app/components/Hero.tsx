@@ -15,7 +15,7 @@ const Hero = () => {
           who appreciate sophistication and precision.
         </p>
 
-        <Link href="/shop">
+        <Link href="/products">
           <button className="mt-3 bg-[#212529] hover:bg-[#343A40] text-white px-4 py-3 rounded-md">
             Shop the Collection
           </button>

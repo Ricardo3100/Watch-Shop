@@ -23,32 +23,28 @@ function getRandomItems<T>(arr: T[], count: number): T[] {
     2,
   );
 
-  const renderSection = (title: string, items: any[]) => (
-    <div className="mb-16">
-      <h2 className="text-2xl font-bold mb-6">{title}</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-        {/* Use the client ProductCard here */}
-        {items.map((product: any) => (
-          <ProductCard key={product._id.toString()} product={product} />
-        ))}
-      </div>
-      <div className="mt-6">
-        <a
-          href={`/category/${title.toLowerCase().replace(" ", "-")}`}
-          className="text-sm underline"
-        >
-          View all →
-        </a>
-      </div>
+const renderSection = (title: string, items: any[], slug: string) => (
+  <div className="mb-16">
+    <h2 className="text-2xl font-bold mb-6">{title}</h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+      {/* Use the client ProductCard here */}
+      {items.map((product: any) => (
+        <ProductCard key={product._id.toString()} product={product} />
+      ))}
     </div>
-  );
+    <div className="mt-6">
+    <a href={`/category/${slug}`} className="text-sm underline">View all →</a>
+
+    </div>
+  </div>
+);
 
   return (
     <section className="w-full py-12">
       <div className="max-w-7xl text-center mx-auto px-4">
-        {renderSection("Pocket Watches", pocketWatches)}
-        {renderSection("Smart Watches", smartWatches)}
-        {renderSection("Wrist Watches", wristWatches)}
+        {renderSection("Pocket Watches", pocketWatches, "pocket-watches")}
+        {renderSection("Smart Watches", smartWatches, "smart-watch")}
+        {renderSection("Wrist Watches", wristWatches, "wrist-watch")}
       </div>
     </section>
   );
