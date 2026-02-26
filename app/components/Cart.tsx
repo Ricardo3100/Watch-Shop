@@ -33,7 +33,8 @@ const router = useRouter();
       <div
         ref={cartRef}
         className="fixed top-1/2 left-1/2 z-50 w-11/12 max-w-md bg-white rounded-lg shadow-lg transform -translate-x-1/2 -translate-y-1/2 flex flex-col max-h-[80vh] overflow-hidden"
-      >
+     
+     >
         {/* Header */}
         <div className="cart-heading flex items-center p-4 border-b">
           <AiOutlineLeft
@@ -68,6 +69,7 @@ const router = useRouter();
 
         {/* Products */}
         {cartItems.length >= 1 && (
+          
           <div className="product-container flex-1 overflow-y-auto p-4 space-y-4">
             {cartItems.map((item) => (
               <div key={item._id} className="product flex items-center gap-4">

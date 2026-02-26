@@ -136,6 +136,35 @@ export default class ProductDAO {
       _id: new ObjectId(id),
     });
   }
+  static async atomicDecreaseStock(
+    productId: string,
+    quantity: number,
+    session: any,
+  ) {
+    const collection = await this.collection();
+
+    const result = await collection.updateOne(
+      {
+        _id: new ObjectId(productId),
+        stock: { $gte: quantity },
+      },
+      {
+        $inc: { stock: -quantity },
+        $set: { updatedAt: new Date() },
+      },
+      { session },
+    );
+
+    return result.modifiedCount === 1;
+  }
+
+  static async getByIds(ids: string[]) {
+    const collection = await this.collection();
+
+    const objectIds = ids.map((id) => new ObjectId(id));
+
+    return await collection.find({ _id: { $in: objectIds } }).toArray();
+  }
 
   /**
    * Update product stock.
@@ -146,11 +175,13 @@ export default class ProductDAO {
    * - An order is placed
    * - Inventory is reduced
    */
-  static async updateStock(id: string, quantity: number) {
+  static async updateStock(id: string | ObjectId, quantity: number) {
     const collection = await this.collection();
 
+    const objectId = typeof id === "string" ? new ObjectId(id) : id;
+
     return await collection.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: objectId },
       {
         $inc: { stock: -quantity },
         $set: { updatedAt: new Date() },

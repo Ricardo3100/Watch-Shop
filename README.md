@@ -381,4 +381,66 @@ Always multiply by 100.
 Never expose secret key.
 
 If you remember those three, you will never break Stripe.
+-----------------------------------
+Why a Webhook Is Required
 
+When using Stripe Elements, payment confirmation happens on the frontend.
+However, the frontend cannot be trusted as the source of truth.
+
+For that reason, this project uses a Stripe webhook to:
+
+Confirm that payment_intent.succeeded actually occurred
+
+Retrieve trusted shipping information from the PaymentIntent
+
+Atomically reduce product inventory
+
+Create the order in MongoDB
+
+Prevent duplicate orders
+
+The webhook acts as the secure backend authority for order creation.
+
+Shipping Information Flow
+
+User enters shipping details in a custom form
+
+Server attaches shipping data to the PaymentIntent
+
+Stripe confirms payment
+
+Webhook receives payment_intent.succeeded
+
+Shipping data is read from Stripe
+
+Order is created in the database
+
+This ensures that shipping data is only stored after a successful payment.
+ --------------------
+ <!-- How to install the cli locally -->
+ In order to test this you will first need to download the stripe cli locally
+ <!-- step 1 run this curl command in the terminal -->
+ curl -s https://packages.stripe.dev/api/security/keypair/stripe-cli-gpg/public | gpg --dearmor | sudo tee /usr/share/keyrings/stripe.gpg
+
+ <!-- step 2 run this command in the terminal -->
+echo "deb [signed-by=/usr/share/keyrings/stripe.gpg] https://packages.stripe.dev/stripe-cli-debian-local stable main" | sudo tee -a /etc/apt/sources.list.d/stripe.list
+<!-- step 3 run this comand in terminal  -->
+sudo apt update
+<!-- step 4 run  this command in the terminal -->
+sudo apt install stripe
+
+<!-- step 5 run this ommand in terminal -->
+stripe login
+<!-- step 6 press enter  you will get a generic project name -->
+Your pairing code is: some-pairing-code-name
+This pairing code verifies your authentication with Stripe.
+Press Enter to open the browser or visit https://dashboard.stripe.com/stripecli/confirm_auth?t=THQdJfL3x12udFkNorJL8OF1iFlN8Az1 (^C to quit)
+
+<!-- step 7 you will be asked to connect the account to the cli client this is where you need to make sure you connect it to the right one or testing wont work my testiing originally failed de to connecting it to the personal one instead of the one named "watchshop" -->
+
+<!-- How to test stripe locally -->
+you will need to run the following command in the terminal : stripe listen --forward-to localhost:3000/path-to-the-web-hook/
+
+for example this project has the webhook in the stripe-api folder within the api folder so the command to run it for this project  is : stripe listen --forward-to localhost:3000/api/stripe-webhook because that is the folder path where the web hook is at.
+
+ both the stripe command and the local host must be running for the local test to work.
