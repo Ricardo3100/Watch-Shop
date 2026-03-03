@@ -444,3 +444,367 @@ you will need to run the following command in the terminal : stripe listen --for
 for example this project has the webhook in the stripe-api folder within the api folder so the command to run it for this project  is : stripe listen --forward-to localhost:3000/api/stripe-webhook because that is the folder path where the web hook is at.
 
  both the stripe command and the local host must be running for the local test to work.
+
+ <!-- Password hashing -->
+ is handled by bcrypt install it by running the following command in the terminal : npm install bcryptjs
+
+ to start you can generate a secure code by typing 
+ node into a terminal and then running the following command : const bcrypt = require("bcryptjs");
+bcrypt.hashSync("YourVeryStrongAdminPassword", 12); this will generate  random password which you can put into your env file
+
+you also need to install jsonwebtoken via npm i jsonwebtoken
+
+
+## Admin Authentication (Passwordless)
+
+This project implements WebAuthn passkey authentication.
+
+Flow:
+1. Admin registers a passkey.
+2. Public key is stored in MongoDB.
+3. Login requires cryptographic challenge verification.
+4. On success, a short-lived JWT is issued via HTTP-only secure cookie.
+5. Middleware protects all /admin routes.
+
+Security:
+• No stored passwords
+• Phishing-resistant authentication
+• JWT expiration (2h)
+• Secure cookies (HTTP-only, SameSite=Strict)
+
+run npm install @simplewebauthn/server @simplewebauthn/browser
+<!-- how to generage a jwt token -->
+run this command in a terminal : node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+copy the resulting hex code into the env file
+
+
+Admin Passkey Authentication (WebAuthn)
+Overview
+
+This project implements passwordless admin authentication using:
+
+@simplewebauthn/server
+
+@simplewebauthn/browser
+
+MongoDB
+
+JWT session cookies
+
+Only admin users can access protected routes.
+
+Authentication flow:
+
+Admin registers a passkey
+
+Credential is stored in MongoDB
+
+Admin logs in using biometric/device authentication
+
+Server verifies assertion
+
+JWT session is issued
+
+📁 File Structure
+app/
+ ├─ admin/
+ │   ├─ register/page.tsx
+ │   ├─ login/page.tsx
+ │   └─ layout.tsx
+ │
+ └─ api/
+     └─ admin/
+         ├─ registration-challenge/route.ts
+         ├─ registration-verify/route.ts
+         ├─ authentication-challenge/route.ts
+         └─ authentication-verify/route.ts
+
+lib/
+ ├─ mongodb.ts
+ └─ auth.ts
+🧠 What Each File Does
+registration-challenge/route.ts
+
+Purpose:
+Generates a WebAuthn registration challenge.
+
+Uses:
+
+generateRegistrationOptions()
+
+Key configuration:
+
+rpName → Application name
+
+rpID → Domain (localhost in development)
+
+userID → Uint8Array identifier
+
+userName → Admin username
+
+Returns challenge options to the browser.
+
+registration-verify/route.ts
+
+Purpose:
+Verifies the registration response from the browser.
+
+Uses:
+
+verifyRegistrationResponse()
+
+If valid:
+
+Extracts credential ID
+
+Stores public key
+
+Stores counter
+
+Saves to MongoDB
+
+This creates the admin credential record.
+
+authentication-challenge/route.ts
+
+Purpose:
+Generates a login challenge.
+
+Uses:
+
+generateAuthenticationOptions()
+
+Includes:
+
+Registered credential ID
+
+rpID
+
+challenge
+
+Sent to browser for login attempt.
+
+authentication-verify/route.ts
+
+Purpose:
+Verifies login attempt.
+
+Uses:
+
+verifyAuthenticationResponse()
+
+If valid:
+
+Confirms signature
+
+Validates counter
+
+Issues JWT session cookie
+
+admin/layout.tsx
+
+Purpose:
+Protects admin routes.
+
+Checks:
+
+JWT cookie
+
+Valid signature
+
+Admin flag
+
+If invalid:
+
+redirect("/")
+🔐 Environment Variables
+
+.env.local
+
+WEBAUTHN_RP_NAME=My Admin Panel
+WEBAUTHN_RP_ID=localhost
+JWT_SECRET=your_super_long_random_secret_here
+Mongo_DB_Name=your_database_name
+🔑 Generating a JWT Secret
+
+Run in terminal:
+
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+Copy result into:
+
+JWT_SECRET=
+🗄 MongoDB Credential Structure
+
+Example document:
+
+{
+  "userId": "admin-id",
+  "credentialID": "...",
+  "publicKey": "...",
+  "counter": 0
+}
+🔄 Registration Flow (Step-by-Step)
+
+Admin clicks “Register Passkey”
+
+Frontend calls:
+
+/api/admin/registration-challenge
+
+Server returns challenge
+
+Browser prompts biometric/device
+
+Frontend sends response to:
+
+/api/admin/registration-verify
+
+Server verifies and stores credential
+
+🔄 Authentication Flow
+
+Admin clicks “Login”
+
+Frontend calls:
+
+/api/admin/authentication-challenge
+
+Server sends challenge
+
+Browser prompts biometric
+
+Frontend sends response to:
+
+/api/admin/authentication-verify
+
+Server verifies
+
+JWT cookie issued
+
+Admin layout allows access
+
+🛡 Why This Is Secure
+
+No passwords stored
+
+No password hashing required
+
+Private keys never leave the device
+
+Public key stored in DB
+
+Replay attack protection via counter
+
+JWT signed server-side
+
+🧱 Why This Is Good for Ecommerce Baseline
+
+This pattern gives you:
+
+Reusable admin authentication
+
+Hardware-backed security
+
+Production-ready passkey flow
+
+Easily extendable to:
+
+Multiple admins
+
+Role-based access
+
+Customer accounts
+
+2FA layers
+
+This is significantly stronger than bcrypt-only admin auth.
+
+🚀 Next Logical Step
+
+Now that registration works:
+
+You should build:
+
+Authentication challenge + verify routes
+
+Then test full login → protected layout → redirect flow.
+
+After that:
+
+Encrypt order addresses
+
+Add field-level encryption
+
+Add audit logging
+
+Harden cookies
+
+You’re building this correctly.
+
+When you’re ready, say:
+
+Admin Passkey Authentication (WebAuthn)
+
+Our watch ecommerce shop uses hardware-backed passkeys for admin login instead of passwords. This provides strong protection against phishing, credential stuffing, and brute-force attacks.
+
+Features
+
+Admin login uses WebAuthn (passkeys) instead of traditional passwords
+
+Hardware-backed security via device authenticators (TouchID, Windows Hello, security keys)
+
+Credential info stored in MongoDB:
+
+credentialID – Base64url string identifying the credential
+
+publicKey – Authenticator public key (Binary)
+
+counter – Numeric signature counter to prevent replay attacks
+
+Authentication flow issues a challenge that must be signed by the authenticator
+
+Verified responses update the counter in MongoDB for security
+
+Flow Overview
+
+Registration
+
+Admin triggers registration-challenge → server issues challenge
+
+Browser displays passkey popup (navigator.credentials.create)
+
+Registration response sent to registration-verify
+
+Server stores credentialID, publicKey, counter in MongoDB
+
+Authentication
+
+Admin triggers authentication-challenge → server issues challenge
+
+Browser displays passkey login popup (navigator.credentials.get)
+
+Authentication response sent to authentication-verify
+
+Server:
+
+Looks up credential by credentialID
+
+Converts publicKey to Uint8Array
+
+Passes response to @simplewebauthn/server for verification
+
+Updates counter in MongoDB
+
+Returns success/failure
+
+Security Notes
+
+No passwords stored or transmitted
+
+Counter prevents replay attacks
+
+Challenges are one-time use
+
+Only admin credentials can authenticate to /admin endpoints

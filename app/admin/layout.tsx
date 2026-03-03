@@ -5,11 +5,8 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isAdmin = process.env.ADMIN_SECRET === "true";
 
-  if (!isAdmin) {
-    redirect("/");
-  }
+
 
   return <>{children}</>;
 }
