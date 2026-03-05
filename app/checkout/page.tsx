@@ -15,11 +15,13 @@ export default function CheckoutPage() {
   const [isReady, setIsReady] = useState(false);
   const [shipping, setShipping] = useState({
     fullName: "",
+    email: "",
     line1: "",
     city: "",
     state: "",
     postalCode: "",
     country: "",
+
   });
 
   // Wait for cart hydration
@@ -115,7 +117,15 @@ export default function CheckoutPage() {
 
             <input
               type="text"
-              placeholder="Address Line 1"
+              placeholder="Email"
+              className="w-full border p-2 rounded"
+              onChange={(e) =>
+                setShipping({ ...shipping, email: e.target.value })
+              }
+            />
+            <input
+              type="text"
+              placeholder="Street Address"
               className="w-full border p-2 rounded"
               onChange={(e) =>
                 setShipping({ ...shipping, line1: e.target.value })

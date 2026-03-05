@@ -2,7 +2,10 @@ import { generateRegistrationOptions } from "@simplewebauthn/server";
 import { NextResponse } from "next/server";
 import { getAdminCollection } from "../../../lib/admincollections";
 
-export async function GET() {
+export async function POST(req: Request) {
+  // ✅ POST not GET
+  const { name } = await req.json(); // ✅ now you can read the name
+
   const admins = await getAdminCollection();
   const existingAdmin = await admins.findOne({});
 
@@ -17,13 +20,12 @@ export async function GET() {
     rpName: process.env.WEBAUTHN_RP_NAME!,
     rpID: process.env.WEBAUTHN_RP_ID!,
     userID: new TextEncoder().encode("admin-id"),
-    userName: "admin",
+    userName: name || "admin", // ✅ use the name from the form
   });
-// inserts into the database the 
-// challenge and the email of the admin, 
-// so that it can be used later to verify the registration response
+
   await admins.insertOne({
     email: "admin@local",
+    name: name || "admin", // ✅ store the name too if you want
     credentials: [],
     currentChallenge: options.challenge,
     createdAt: new Date(),

@@ -41,6 +41,12 @@ export async function POST(req: Request) {
 
   const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
+  const email =
+    paymentIntent.receipt_email || paymentIntent.metadata?.email || null;
+
+  if (!email) {
+    throw new Error("Missing customer email");
+  }
   // ----------------------------
   // 🔒 IDEMPOTENCY CHECK
   // ----------------------------
@@ -116,6 +122,7 @@ const cart = JSON.parse(paymentIntent.metadata.cart);
         {
           stripePaymentIntentId: paymentIntent.id,
           items: orderItems,
+          email,
           shipping,
           total,
           status: "paid",

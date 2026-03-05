@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { getAdminCollection } from "../../../lib/admincollections";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
 import { Binary } from "mongodb";
-
+import jwt from "jsonwebtoken";
 /**
  * POST /api/admin/authentication-verify
  * This endpoint verifies a WebAuthn passkey authentication attempt for the admin panel.
@@ -89,8 +89,31 @@ export async function POST(req: Request) {
       },
     );
 
-    // ✅ Authentication succeeded
-    return NextResponse.json({ success: true });
+    
+    // When Authentication succeeds, 
+    // generate a JWT token for the admin session
+    const token = jwt.sign(
+      {
+        adminId: admin._id.toString(),
+        role: "admin",
+        name: admin.name || "Admin", // ✅ add this
+      },
+      process.env.ADMIN_JWT_SECRET!,
+      { expiresIn: "2h" },
+    );
+
+    const response = NextResponse.json({ success: true });
+
+    // Set secure HTTP-only cookie
+    response.cookies.set("admin_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 60 * 60 * 2, // 2 hours
+    });
+
+    return response;
   } catch (err) {
     // Log error for debugging
     console.error("Auth verify error:", err);

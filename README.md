@@ -46,123 +46,218 @@ This repository is primarily for **personal learning**, demonstrating **accessib
 
 While the MIT License allows others to copy, modify, and distribute the code, please note that this project is **not intended for commercial use** without prior permission.
 
- Stripe Payments — Baby Version (Rebuild From Nothing Guide)
+# 🛍️ Watch Shop — Ecommerce with Accessible Design + Secure Admin
+
+**Intended use:**
+This repository is for personal learning, demonstrating accessible coding pipelines, and showcasing code during interviews or screen shares. While the MIT License allows others to copy and modify this code, it is not intended for commercial use without prior permission.
+
+---
+
+## 🧠 Design Philosophy
+
+This project is built with cognitive accessibility at its core.
+
+Most ecommerce sites show a button that says **"Pay $20"**.
+
+This project shows: **"You will be charged $20 for this item."**
+
+That one change helps users with cognitive impairments understand exactly what is about to happen before they commit. Every design decision in this project follows that same principle — say the full thing, never assume the user already knows.
+
+---
+
+## 📦 What This Project Contains
+
+- A Next.js ecommerce shop (watches)
+- Full shopping cart
+- Stripe payments with webhooks
+- Passwordless admin login using passkeys (WebAuthn)
+- MongoDB database
+- Accessible UI design throughout
+
+---
+
+## 🔑 Environment Variables — Master List
+
+Create a `.env.local` file in the root of the project. It needs all of these:
+
+```bash
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# WebAuthn (Passkey Login)
+WEBAUTHN_ORIGIN=http://localhost:3000
+WEBAUTHN_RP_ID=localhost
+WEBAUTHN_RP_NAME=Watch Shop Admin
+
+# Admin Session
+ADMIN_JWT_SECRET=your_long_random_secret_here
+
+# MongoDB
+MONGODB_URI=mongodb+srv://...
+Mongo_DB_Name=your_database_name
+```
+
+> ⚠️ Never commit `.env.local` to Git. Add it to `.gitignore`.
+
+---
+
+## 🚀 How To Run The Project
+
+```bash
+# Step 1 — Install dependencies
+npm install
+
+# Step 2 — Add your environment variables (see above)
+
+# Step 3 — Run the development server
+npm run dev
+
+# Step 4 — Open in browser
+http://localhost:3000
+```
+
+---
+
+---
+
+# 🛍️ Watch Shop — Ecommerce with Accessible Design + Secure Admin
+
+**Intended use:**
+This repository is for personal learning, demonstrating accessible coding pipelines, and showcasing code during interviews or screen shares. While the MIT License allows others to copy and modify this code, it is not intended for commercial use without prior permission.
+
+---
+
+## 🧠 Design Philosophy
+
+This project is built with cognitive accessibility at its core.
+
+Most ecommerce sites show a button that says **"Pay $20"**.
+
+This project shows: **"You will be charged $20 for this item."**
+
+That one change helps users with cognitive impairments understand exactly what is about to happen before they commit. Every design decision in this project follows that same principle — say the full thing, never assume the user already knows.
+
+---
+
+## 📦 What This Project Contains
+
+- A Next.js ecommerce shop (watches)
+- Full shopping cart
+- Stripe payments with webhooks
+- Passwordless admin login using passkeys (WebAuthn)
+- MongoDB database
+- Accessible UI design throughout
+
+---
+
+## 🔑 Environment Variables — Master List
+
+Create a `.env.local` file in the root of the project. It needs all of these:
+
+```bash
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# WebAuthn (Passkey Login)
+WEBAUTHN_ORIGIN=http://localhost:3000
+WEBAUTHN_RP_ID=localhost
+WEBAUTHN_RP_NAME=Watch Shop Admin
+
+# Admin Session
+ADMIN_JWT_SECRET=your_long_random_secret_here
+
+# MongoDB
+MONGODB_URI=mongodb+srv://...
+Mongo_DB_Name=your_database_name
+```
+
+> ⚠️ Never commit `.env.local` to Git. Add it to `.gitignore`.
+
+---
+
+## 🚀 How To Run The Project
+
+```bash
+# Step 1 — Install dependencies
+npm install
+
+# Step 2 — Add your environment variables (see above)
+
+# Step 3 — Run the development server
+npm run dev
+
+# Step 4 — Open in browser
+http://localhost:3000
+```
+
+---
+
+---
+
+# 💳 Stripe Payments
+
+## The Simple Version (What Is Actually Happening)
 
 Imagine this:
 
-A customer wants to give you money.
-
-You cannot touch their card.
-
-Stripe is the trusted adult in the room.
+A customer wants to give you money. You cannot touch their card. Stripe is the trusted adult in the room.
 
 Your job is just to:
 
-Tell Stripe how much money.
+1. Tell Stripe how much money
+2. Let Stripe collect the card
+3. Ask Stripe to finish the payment
 
-Let Stripe collect the card.
+That is it. Everything in the payments folder exists to do those 3 things.
 
-Ask Stripe to finish the payment.
+---
 
-That’s it.
+## 🌍 The Two Worlds
 
-Everything in this folder exists to do those 3 things.
+There are two worlds in this app.
 
-Big Picture First (So You Don’t Get Lost)
+| World | Name | Trust Level |
+|---|---|---|
+| Server | Safe world | Trusted |
+| Browser | Unsafe world | Not trusted |
 
-When someone clicks “Pay”, this happens:
+**Money math must always happen on the server.** Never the browser.
 
-Your server says:
+---
 
-“Stripe, I want to charge $240.”
-
-Stripe says:
-
-“Okay. Here’s a secret code for that payment.”
-
-Your browser uses that secret code to safely collect card details.
-
-Stripe charges the card.
-
-Stripe sends the user to the success page.
-
-That’s the whole system.
-
-If anything breaks, it’s because one of those 5 steps broke.
-
-The Two Worlds
-
-There are two worlds in this app:
-
-World 1: Server (safe world)
-World 2: Browser (unsafe world)
-
-Important rule:
-
-The browser is not trusted.
-
-The server is trusted.
-
-Money math must happen in the trusted world.
-
-Step 1 — The Secret Keys (The Keys to the House)
+## 🔐 Step 1 — The Secret Keys
 
 Stripe gives you two keys.
 
-They look like this:
+**Public key** → Goes in the browser. Safe to show.
+```
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+```
 
-Public key:
+**Secret key** → Server only. Never expose this.
+```
+STRIPE_SECRET_KEY=sk_test_...
+```
 
-pk_test_...
+If Stripe says `"Publishable key undefined"` — your public key is missing or misspelled.
 
+---
 
-Secret key:
+## 🧠 Step 2 — The Most Important File
 
-sk_test_...
+**File: `createPaymentIntent.ts`**
 
+This file runs on the server. Its job:
 
-Public key:
+1. Look at the cart
+2. Add up the total
+3. Multiply by 100 (Stripe wants cents, not dollars)
+4. Ask Stripe to create a PaymentIntent
+5. Return the secret code to the browser
 
-Goes in the browser
-
-Safe to show
-
-Secret key:
-
-ONLY on the server
-
-If leaked, someone can charge cards
-
-So we store them in .env.local.
-
-If Stripe says:
-
-“Publishable key undefined”
-
-It means your public key is missing or misspelled.
-
-Step 2 — The Most Important File
-
-createPaymentIntent.ts
-
-This is the brain.
-
-This file runs on the server.
-
-Its job is:
-
-Look at the cart.
-
-Add up the total.
-
-Multiply by 100 (Stripe wants cents).
-
-Ask Stripe to create a PaymentIntent.
-
-Return the secret code.
-
-Example:
-
+```typescript
 "use server";
 
 import Stripe from "stripe";
@@ -170,641 +265,683 @@ import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function createPaymentIntent(cartItems) {
-
-  // Step 1: Add up money
   const total = cartItems.reduce((acc, item) => {
     return acc + item.price * item.quantity;
   }, 0);
 
-  // Step 2: Convert dollars to cents
-  const amount = Math.round(total * 100);
+  const amount = Math.round(total * 100); // Dollars → cents
 
-  // Step 3: Tell Stripe
   const paymentIntent = await stripe.paymentIntents.create({
     amount,
     currency: "usd",
     automatic_payment_methods: { enabled: true },
   });
 
-  // Step 4: Give browser the secret
   return paymentIntent.client_secret;
 }
+```
 
+> If the Stripe dashboard shows the wrong amount — this file is wrong. Check here first.
 
-If Stripe dashboard shows wrong amount:
+---
 
-It is because THIS math is wrong.
+## 💡 Why Multiply By 100?
 
-Not Stripe.
+Stripe speaks cents. You speak dollars.
 
-Always check this file first.
+```
+$240.00  →  Stripe wants 24000
+```
 
-Step 3 — Why Multiply by 100?
+If you forget this, the payment amount will be wrong.
 
-Stripe speaks cents.
+---
 
-You speak dollars.
+## 🔒 Step 3 — The Browser Needs Permission
 
-$240.00
-Stripe wants 24000.
+Stripe does not let the browser collect card info without permission. The permission is the `client_secret`.
 
-If you forget this:
-Your payment will be wrong.
+That secret says: *"This browser is allowed to complete THIS specific payment."*
 
-Step 4 — The Browser Needs Permission
+Without it, nothing works. That is why you must:
 
-Stripe does not let the browser collect card info without permission.
+1. Call `createPaymentIntent`
+2. Save the returned secret
+3. Pass it into `<Elements>`
 
-The permission is the client_secret.
+---
 
-That secret says:
+## 🎁 Step 4 — The Stripe Wrapper
 
-“This browser is allowed to complete THIS specific payment.”
+Stripe requires this wrapper around your checkout form:
 
-Without it, nothing works.
-
-That is why we must:
-
-Call createPaymentIntent
-
-Save the returned secret
-
-Pass it into <Elements>
-
-Step 5 — Stripe Wrapper
-
-Stripe requires this:
-
-<Elements stripe={...} options={{ clientSecret }}>
-   <CheckoutForm />
+```tsx
+<Elements stripe={stripePromise} options={{ clientSecret }}>
+  <CheckoutForm />
 </Elements>
+```
 
+This wrapper is not optional. If you remove it:
+- `useStripe()` will be `null`
+- `PaymentElement` won't work
+- Confirm payment fails
 
-Why?
+---
 
-Because Stripe injects magic into everything inside <Elements>.
+## 💳 Step 5 — The Checkout Form
 
-If you remove it:
+This is the only thing the user sees:
 
-useStripe() will be null
-
-PaymentElement won’t work
-
-Confirm payment fails
-
-This wrapper is not optional.
-
-Step 6 — The Checkout Form
-
-This is the only thing the user sees.
-
+```tsx
 <PaymentElement />
+```
 
+That component handles card input, validation, fraud detection, and 3D Secure. Your server never sees the card.
 
-That component:
+Then this runs when the user confirms:
 
-Shows card input
-
-Handles validation
-
-Handles fraud
-
-Handles 3D secure
-
-Sends card data directly to Stripe
-
-Your server NEVER sees the card.
-
-Then this runs:
-
+```typescript
 stripe.confirmPayment({
   elements,
   confirmParams: {
     return_url: "/success"
   }
 });
+```
 
+---
 
-That line means:
+## ✅ Step 6 — The Success Page
 
-“Stripe, finish the payment now.”
+When payment is done, Stripe redirects to `/success`.
 
-That’s it.
+This page must:
+- Clear the cart
+- Show a confirmation message
 
-You are not charging manually.
-Stripe is.
+> If you don't clear the cart, the user might accidentally pay again.
 
-Step 7 — The Success Page
+---
 
-When payment is done, Stripe redirects to:
+## 🔄 Webhooks — Why They Are Required
 
-/success
+When payment confirmation happens on the frontend, the frontend cannot be trusted as the source of truth.
 
+This project uses a Stripe webhook to:
+- Confirm that `payment_intent.succeeded` actually occurred
+- Retrieve trusted shipping information from the PaymentIntent
+- Reduce product inventory
+- Create the order in MongoDB
+- Prevent duplicate orders
 
-This page should:
+**Shipping information flow:**
+1. User enters shipping details in a form
+2. Server attaches shipping data to the PaymentIntent
+3. Stripe confirms payment
+4. Webhook receives `payment_intent.succeeded`
+5. Shipping data is read from Stripe
+6. Order is created in the database
 
-Clear the cart
+---
 
-Show confirmation message
+## 🛠️ How To Test Stripe Locally
 
-If you don’t clear cart:
-User might accidentally pay again.
+You need the Stripe CLI installed.
 
-If Something Breaks
+```bash
+# Step 1
+curl -s https://packages.stripe.dev/api/security/keypair/stripe-cli-gpg/public | gpg --dearmor | sudo tee /usr/share/keyrings/stripe.gpg
 
-If clicking pay does nothing:
-
-StripeWrapper missing
-
-clientSecret not loaded
-
-If amount wrong:
-
-createPaymentIntent math wrong
-
-Forgot * 100
-
-Cart was empty when intent created
-
-If publishable key undefined:
-
-Missing NEXT_PUBLIC_
-
-If payment shows incomplete:
-
-You didn’t use Stripe test card
-
-The Entire Flow in One Sentence
-
-Server creates payment.
-Browser completes payment.
-Stripe processes payment.
-
-That’s it.
-
-If You Rebuild This In 10 Years
-
-Do exactly this:
-
-Install stripe packages.
-
-Add env keys.
-
-Create server function to create PaymentIntent.
-
-Calculate money on server.
-
-Multiply by 100.
-
-Return client_secret.
-
-Wrap checkout in <Elements>.
-
-Render <PaymentElement />.
-
-Call stripe.confirmPayment().
-
-Create success page.
-
-Clear cart.
-
-If you follow those 11 steps, Stripe works.
-
-Every time.
-
-The Only Three Rules That Matter
-
-Never trust frontend for money.
-
-Always multiply by 100.
-
-Never expose secret key.
-
-If you remember those three, you will never break Stripe.
------------------------------------
-Why a Webhook Is Required
-
-When using Stripe Elements, payment confirmation happens on the frontend.
-However, the frontend cannot be trusted as the source of truth.
-
-For that reason, this project uses a Stripe webhook to:
-
-Confirm that payment_intent.succeeded actually occurred
-
-Retrieve trusted shipping information from the PaymentIntent
-
-Atomically reduce product inventory
-
-Create the order in MongoDB
-
-Prevent duplicate orders
-
-The webhook acts as the secure backend authority for order creation.
-
-Shipping Information Flow
-
-User enters shipping details in a custom form
-
-Server attaches shipping data to the PaymentIntent
-
-Stripe confirms payment
-
-Webhook receives payment_intent.succeeded
-
-Shipping data is read from Stripe
-
-Order is created in the database
-
-This ensures that shipping data is only stored after a successful payment.
- --------------------
- <!-- How to install the cli locally -->
- In order to test this you will first need to download the stripe cli locally
- <!-- step 1 run this curl command in the terminal -->
- curl -s https://packages.stripe.dev/api/security/keypair/stripe-cli-gpg/public | gpg --dearmor | sudo tee /usr/share/keyrings/stripe.gpg
-
- <!-- step 2 run this command in the terminal -->
+# Step 2
 echo "deb [signed-by=/usr/share/keyrings/stripe.gpg] https://packages.stripe.dev/stripe-cli-debian-local stable main" | sudo tee -a /etc/apt/sources.list.d/stripe.list
-<!-- step 3 run this comand in terminal  -->
+
+# Step 3
 sudo apt update
-<!-- step 4 run  this command in the terminal -->
+
+# Step 4
 sudo apt install stripe
 
-<!-- step 5 run this ommand in terminal -->
+# Step 5
 stripe login
-<!-- step 6 press enter  you will get a generic project name -->
-Your pairing code is: some-pairing-code-name
-This pairing code verifies your authentication with Stripe.
-Press Enter to open the browser or visit https://dashboard.stripe.com/stripecli/confirm_auth?t=THQdJfL3x12udFkNorJL8OF1iFlN8Az1 (^C to quit)
+```
 
-<!-- step 7 you will be asked to connect the account to the cli client this is where you need to make sure you connect it to the right one or testing wont work my testiing originally failed de to connecting it to the personal one instead of the one named "watchshop" -->
+When prompted, press Enter to open the browser. Connect the CLI to the correct Stripe account (the one named "watchshop" — not your personal one).
 
-<!-- How to test stripe locally -->
-you will need to run the following command in the terminal : stripe listen --forward-to localhost:3000/path-to-the-web-hook/
+Then run the webhook listener:
 
-for example this project has the webhook in the stripe-api folder within the api folder so the command to run it for this project  is : stripe listen --forward-to localhost:3000/api/stripe-webhook because that is the folder path where the web hook is at.
+```bash
+stripe listen --forward-to localhost:3000/api/stripe-webhook
+```
 
- both the stripe command and the local host must be running for the local test to work.
+> Both the Stripe CLI listener AND `npm run dev` must be running at the same time for local testing to work.
 
- <!-- Password hashing -->
- is handled by bcrypt install it by running the following command in the terminal : npm install bcryptjs
+---
 
- to start you can generate a secure code by typing 
- node into a terminal and then running the following command : const bcrypt = require("bcryptjs");
-bcrypt.hashSync("YourVeryStrongAdminPassword", 12); this will generate  random password which you can put into your env file
+## 🚨 If Stripe Breaks
 
-you also need to install jsonwebtoken via npm i jsonwebtoken
+| Symptom | Cause | Fix |
+|---|---|---|
+| Clicking pay does nothing | StripeWrapper missing or clientSecret not loaded | Check `<Elements>` wrapper exists |
+| Wrong amount charged | Math wrong in `createPaymentIntent` | Check the multiply by 100 step |
+| "Publishable key undefined" | Missing `NEXT_PUBLIC_` prefix | Fix env variable name |
+| Payment shows incomplete | Wrong test card used | Use Stripe test card `4242 4242 4242 4242` |
 
+---
 
-## Admin Authentication (Passwordless)
+## 🔁 The Three Rules That Never Change
 
-This project implements WebAuthn passkey authentication.
+1. Never trust the frontend for money
+2. Always multiply by 100
+3. Never expose the secret key
 
-Flow:
-1. Admin registers a passkey.
-2. Public key is stored in MongoDB.
-3. Login requires cryptographic challenge verification.
-4. On success, a short-lived JWT is issued via HTTP-only secure cookie.
-5. Middleware protects all /admin routes.
+---
 
-Security:
-• No stored passwords
-• Phishing-resistant authentication
-• JWT expiration (2h)
-• Secure cookies (HTTP-only, SameSite=Strict)
+---
 
-run npm install @simplewebauthn/server @simplewebauthn/browser
-<!-- how to generage a jwt token -->
-run this command in a terminal : node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+# 🔐 Admin Passkey Authentication (WebAuthn)
 
-copy the resulting hex code into the env file
+## What Is a Passkey?
 
+A passkey is a way to log in using your device's biometrics (fingerprint, Face ID, Windows Hello) instead of a password.
 
-Admin Passkey Authentication (WebAuthn)
-Overview
+- No password is stored anywhere
+- Your private key never leaves your device
+- Even if the database is hacked, there is nothing useful there
+- Phishing resistant — fake sites cannot steal your login
 
-This project implements passwordless admin authentication using:
+---
 
-@simplewebauthn/server
+## 🏗️ How To Install
 
-@simplewebauthn/browser
+```bash
+npm install @simplewebauthn/server @simplewebauthn/browser
+```
 
-MongoDB
+> This project uses `@simplewebauthn` v13. The API changed significantly from v9 to v10. See the troubleshooting section if upgrading.
 
-JWT session cookies
+---
 
-Only admin users can access protected routes.
+## 📁 File Structure
 
-Authentication flow:
-
-Admin registers a passkey
-
-Credential is stored in MongoDB
-
-Admin logs in using biometric/device authentication
-
-Server verifies assertion
-
-JWT session is issued
-
-📁 File Structure
+```
 app/
- ├─ admin/
- │   ├─ register/page.tsx
- │   ├─ login/page.tsx
- │   └─ layout.tsx
- │
- └─ api/
-     └─ admin/
-         ├─ registration-challenge/route.ts
-         ├─ registration-verify/route.ts
-         ├─ authentication-challenge/route.ts
-         └─ authentication-verify/route.ts
+├─ admin/
+│   ├─ register/page.tsx       ← Register a new passkey
+│   ├─ login/page.tsx          ← Login with passkey
+│   └─ layout.tsx              ← Protects all /admin routes
+│
+└─ api/
+    └─ admin/
+        ├─ registration-challenge/route.ts
+        ├─ registration-verify/route.ts
+        ├─ authentication-challenge/route.ts
+        └─ authentication-verify/route.ts
 
 lib/
- ├─ mongodb.ts
- └─ auth.ts
-🧠 What Each File Does
-registration-challenge/route.ts
+├─ mongodb.ts
+└─ auth.ts
+```
 
-Purpose:
-Generates a WebAuthn registration challenge.
+---
 
-Uses:
+## 🔄 Registration Flow (Step-by-Step)
 
-generateRegistrationOptions()
+This is how a new passkey gets saved to the database.
 
-Key configuration:
+```
+1. Admin clicks "Register Passkey"
+       ↓
+2. Browser calls /api/admin/registration-challenge
+       ↓
+3. Server generates a one-time challenge → saves to MongoDB
+       ↓
+4. Browser prompts biometric/device (fingerprint, Face ID, etc.)
+       ↓
+5. Browser sends response to /api/admin/registration-verify
+       ↓
+6. Server verifies response and stores:
+       - credentialID  (base64url string)
+       - publicKey     (Binary, stored in MongoDB)
+       - counter       (starts at 0)
+```
 
-rpName → Application name
+---
 
-rpID → Domain (localhost in development)
+## 🔄 Authentication Flow (Step-by-Step)
 
-userID → Uint8Array identifier
+This is how login works after a passkey is registered.
 
-userName → Admin username
+```
+1. Admin clicks "Login with Passkey"
+       ↓
+2. Browser calls /api/admin/authentication-challenge
+       ↓
+3. Server generates a one-time challenge → saves to MongoDB
+       ↓
+4. Browser prompts biometric/device
+       ↓
+5. Browser sends response to /api/admin/authentication-verify
+       ↓
+6. Server looks up credential by credentialID
+       ↓
+7. Server verifies the cryptographic signature
+       ↓
+8. Server updates the counter in MongoDB (prevents replay attacks)
+       ↓
+9. JWT session cookie is issued → admin is logged in
+```
 
-Returns challenge options to the browser.
+---
 
-registration-verify/route.ts
+## 🗄️ MongoDB Credential Structure
 
-Purpose:
-Verifies the registration response from the browser.
+This is the exact shape of what gets stored during registration:
 
-Uses:
-
-verifyRegistrationResponse()
-
-If valid:
-
-Extracts credential ID
-
-Stores public key
-
-Stores counter
-
-Saves to MongoDB
-
-This creates the admin credential record.
-
-authentication-challenge/route.ts
-
-Purpose:
-Generates a login challenge.
-
-Uses:
-
-generateAuthenticationOptions()
-
-Includes:
-
-Registered credential ID
-
-rpID
-
-challenge
-
-Sent to browser for login attempt.
-
-authentication-verify/route.ts
-
-Purpose:
-Verifies login attempt.
-
-Uses:
-
-verifyAuthenticationResponse()
-
-If valid:
-
-Confirms signature
-
-Validates counter
-
-Issues JWT session cookie
-
-admin/layout.tsx
-
-Purpose:
-Protects admin routes.
-
-Checks:
-
-JWT cookie
-
-Valid signature
-
-Admin flag
-
-If invalid:
-
-redirect("/")
-🔐 Environment Variables
-
-.env.local
-
-WEBAUTHN_RP_NAME=My Admin Panel
-WEBAUTHN_RP_ID=localhost
-JWT_SECRET=your_super_long_random_secret_here
-Mongo_DB_Name=your_database_name
-🔑 Generating a JWT Secret
-
-Run in terminal:
-
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-
-Copy result into:
-
-JWT_SECRET=
-🗄 MongoDB Credential Structure
-
-Example document:
-
+```json
 {
   "userId": "admin-id",
-  "credentialID": "...",
-  "publicKey": "...",
-  "counter": 0
+  "credentialID": "base64url-string-here",
+  "publicKey": "<Binary — MongoDB Binary type, NOT a plain string>",
+  "counter": 0,
+  "currentChallenge": "temporarily stored here during auth, cleared after"
 }
-🔄 Registration Flow (Step-by-Step)
+```
 
-Admin clicks “Register Passkey”
+> ⚠️ `publicKey` is stored as a MongoDB `Binary` type. When reading it back, you must use `.value()` not `.buffer` — see the troubleshooting section.
 
-Frontend calls:
+---
 
-/api/admin/registration-challenge
+## 🍪 Session Management (JWT)
 
-Server returns challenge
+After a successful passkey login, the server issues a JWT stored in a secure cookie.
 
-Browser prompts biometric/device
+```typescript
+const token = jwt.sign(
+  { adminId: admin._id.toString(), role: "admin" },
+  process.env.ADMIN_JWT_SECRET!,
+  { expiresIn: "2h" }
+);
 
-Frontend sends response to:
+response.cookies.set("admin_token", token, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  path: "/",
+  maxAge: 60 * 60 * 2,
+});
+```
 
-/api/admin/registration-verify
+The cookie is HTTP-only so JavaScript cannot read it. This prevents XSS attacks from stealing the session.
 
-Server verifies and stores credential
+---
 
-🔄 Authentication Flow
+## 🛡️ How To Generate a JWT Secret
 
-Admin clicks “Login”
+Run this in your terminal:
 
-Frontend calls:
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
 
-/api/admin/authentication-challenge
+Copy the result into your `.env.local`:
 
-Server sends challenge
+```
+ADMIN_JWT_SECRET=paste_result_here
+```
 
-Browser prompts biometric
+---
 
-Frontend sends response to:
+## 🔒 Route Protection
 
-/api/admin/authentication-verify
+**Dashboard page** (`app/admin/dashboard/page.tsx`) — checks the JWT on every request:
 
-Server verifies
+```typescript
+const token = cookies().get("admin_token")?.value;
+if (!token) redirect("/admin/login");
+jwt.verify(token, process.env.ADMIN_JWT_SECRET!);
+```
 
-JWT cookie issued
+**API routes** — every `/api/admin/*` route must independently verify the JWT:
 
-Admin layout allows access
+```typescript
+function verifyAdmin() {
+  const token = cookies().get("admin_token")?.value;
+  if (!token) throw new Error("Unauthorized");
+  return jwt.verify(token, process.env.ADMIN_JWT_SECRET!);
+}
+```
 
-🛡 Why This Is Secure
+---
 
-No passwords stored
+## 🚨 If Passkey Login Breaks
 
-No password hashing required
+### "Cannot read properties of undefined (reading 'counter')"
 
-Private keys never leave the device
+This means you are using the v9 API shape with v10+ installed.
 
-Public key stored in DB
+```typescript
+// ❌ v9 shape — DO NOT USE with v13
+authenticator: {
+  credentialID: isoBase64URL.toBuffer(credential.credentialID),
+  credentialPublicKey: new Uint8Array(...),
+  counter: Number(credential.counter),
+}
 
-Replay attack protection via counter
+// ✅ v13 shape — USE THIS
+credential: {
+  id: credential.credentialID,          // base64url string, NOT a buffer
+  publicKey: new Uint8Array(...),
+  counter: Number(credential.counter),
+}
+```
 
-JWT signed server-side
+Also: in v13 you can pass `body` directly to `verifyAuthenticationResponse`. You do not need to manually decode `clientDataJSON`, `authenticatorData`, etc. The library handles that.
 
-🧱 Why This Is Good for Ecommerce Baseline
+---
 
-This pattern gives you:
+### "Credential not found"
 
-Reusable admin authentication
+The `credentialID` stored in MongoDB does not match `body.id` coming from the browser. Check for base64url padding differences or encoding mismatches.
 
-Hardware-backed security
+Add this debug log to find the problem:
 
-Production-ready passkey flow
+```typescript
+console.log("body.id:", body.id);
+console.log("stored ID:", credential.credentialID);
+console.log("match:", credential.credentialID === body.id);
+```
 
-Easily extendable to:
+---
 
-Multiple admins
+### "Response signature invalid"
 
-Role-based access
+The publicKey was extracted from MongoDB Binary incorrectly.
 
-Customer accounts
+```typescript
+// ❌ Wrong — may give empty or wrong buffer
+new Uint8Array((credential.publicKey as Binary).buffer)
 
-2FA layers
+// ✅ Correct for MongoDB driver v5+
+new Uint8Array((credential.publicKey as Binary).value())
+```
 
-This is significantly stronger than bcrypt-only admin auth.
+---
 
-🚀 Next Logical Step
+### "Expected origin not found"
 
-Now that registration works:
+`WEBAUTHN_ORIGIN` must exactly match your app's URL — no trailing slash, exact protocol.
 
-You should build:
+```bash
+# ✅ Correct
+WEBAUTHN_ORIGIN=http://localhost:3000
 
-Authentication challenge + verify routes
+# ❌ Wrong
+WEBAUTHN_ORIGIN=http://localhost:3000/
+WEBAUTHN_ORIGIN=localhost:3000
+```
 
-Then test full login → protected layout → redirect flow.
+---
 
-After that:
+### Challenge expired or not found
 
-Encrypt order addresses
+The challenge is stored in MongoDB and cleared after use. If you are getting this error, the most likely cause is that the challenge was cleared before verification ran, or you are running two instances of the server.
 
-Add field-level encryption
+---
 
-Add audit logging
+## 🧱 Security Layers Summary
 
-Harden cookies
+| Layer | What It Protects Against |
+|---|---|
+| WebAuthn passkey | Password brute force, phishing |
+| One-time challenge | Replay attacks |
+| Counter tracking | Signature reuse |
+| JWT signing | Session tampering |
+| HTTP-only cookie | XSS token theft |
+| Route verification | Unauthorized dashboard access |
+| API verification | Direct API abuse, cURL attacks |
 
-You’re building this correctly.
+---
 
-When you’re ready, say:
+---
 
-Admin Passkey Authentication (WebAuthn)
+# ♿ Accessibility Pipeline (Coming Next)
 
-Our watch ecommerce shop uses hardware-backed passkeys for admin login instead of passwords. This provides strong protection against phishing, credential stuffing, and brute-force attacks.
+This project is building toward an automated accessibility testing pipeline so that only accessible code can be merged and approved.
 
-Features
+The goal is to gain hands-on experience with:
+- Automated accessibility auditing (axe-core, Lighthouse CI)
+- Pull request checks that block inaccessible code
+- WCAG 2.1 AA compliance as a baseline
 
-Admin login uses WebAuthn (passkeys) instead of traditional passwords
+This section will be expanded as the pipeline is built.
 
-Hardware-backed security via device authenticators (TouchID, Windows Hello, security keys)
+---
 
-Credential info stored in MongoDB:
+---
 
-credentialID – Base64url string identifying the credential
+# 🔁 Full Rebuild Checklist
 
-publicKey – Authenticator public key (Binary)
+If you have lost all memory of this project but still know how to code, follow these steps in order.
 
-counter – Numeric signature counter to prevent replay attacks
+## Stripe
 
-Authentication flow issues a challenge that must be signed by the authenticator
+- [ ] `npm install stripe @stripe/stripe-js @stripe/react-stripe-js`
+- [ ] Add Stripe env variables (public + secret)
+- [ ] Create `createPaymentIntent` server action — calculate total, multiply by 100, return `client_secret`
+- [ ] Wrap checkout page in `<Elements stripe={...} options={{ clientSecret }}>`
+- [ ] Render `<PaymentElement />` inside the form
+- [ ] Call `stripe.confirmPayment()` on submit with `return_url: "/success"`
+- [ ] Create `/success` page — clear cart, show confirmation
+- [ ] Create webhook at `/api/stripe-webhook` — handle `payment_intent.succeeded`
+- [ ] Add `STRIPE_WEBHOOK_SECRET` to env variables
+- [ ] Test with Stripe CLI: `stripe listen --forward-to localhost:3000/api/stripe-webhook`
 
-Verified responses update the counter in MongoDB for security
+## Admin Passkey Auth
 
-Flow Overview
+- [ ] `npm install @simplewebauthn/server @simplewebauthn/browser`
+- [ ] Generate JWT secret: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
+- [ ] Add `WEBAUTHN_ORIGIN`, `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME`, `ADMIN_JWT_SECRET` to env
+- [ ] Create `registration-challenge` route — `generateRegistrationOptions()`, save challenge to MongoDB
+- [ ] Create `registration-verify` route — `verifyRegistrationResponse()`, store `credentialID`, `publicKey` (Binary), `counter` (0)
+- [ ] Create `authentication-challenge` route — `generateAuthenticationOptions()`, save challenge to MongoDB
+- [ ] Create `authentication-verify` route — look up credential, call `verifyAuthenticationResponse()` with v13 `credential:` shape, update counter, issue JWT cookie
+- [ ] Create `admin/login/page.tsx` — trigger auth challenge + verify flow
+- [ ] Protect `admin/dashboard/page.tsx` — verify JWT cookie server-side, redirect if invalid
+- [ ] Add `verifyAdmin()` helper to every `/api/admin/*` route
 
-Registration
+---
 
-Admin triggers registration-challenge → server issues challenge
+---
 
-Browser displays passkey popup (navigator.credentials.create)
+---
 
-Registration response sent to registration-verify
+# 🛡️ Protecting The Admin Dashboard
 
-Server stores credentialID, publicKey, counter in MongoDB
+## 🧸 The Problem In Plain English
 
-Authentication
+Imagine the admin dashboard is a room with a door.
 
-Admin triggers authentication-challenge → server issues challenge
+Anyone can walk up to that door and try to open it — even people who shouldn't be there. They just type `/admin/dashboard` into the browser and try to walk in.
 
-Browser displays passkey login popup (navigator.credentials.get)
+We need a **guard at the door** who checks every single person before they can enter. Every time. No exceptions.
 
-Authentication response sent to authentication-verify
+---
 
-Server:
+## 🚪 What The Guard Checks
 
-Looks up credential by credentialID
+When someone tries to visit the dashboard, the guard does this — in order:
 
-Converts publicKey to Uint8Array
+```
+1. Do you have a cookie called admin_token?
+        ↓ NO  → You are sent back to /admin/login immediately
+        ↓ YES → Continue to next check
 
-Passes response to @simplewebauthn/server for verification
+2. Is the cookie a real, signed JWT — not a fake?
+        ↓ NO  → You are sent back to /admin/login immediately
+        ↓ YES → Continue to next check
 
-Updates counter in MongoDB
+3. Has the cookie expired?
+        ↓ YES → You are sent back to /admin/login immediately
+        ↓ NO  → Continue to next check
 
-Returns success/failure
+4. Does the cookie say your role is "admin"?
+        ↓ NO  → You are sent back to /admin/login immediately
+        ↓ YES → You are allowed in ✅
+```
 
-Security Notes
+If you fail any step, you are out. The dashboard never loads.
 
-No passwords stored or transmitted
+---
 
-Counter prevents replay attacks
+## 📁 Where The Guard Lives
 
-Challenges are one-time use
+```
+lib/verifyAdmin.ts
+```
 
-Only admin credentials can authenticate to /admin endpoints
+This one file IS the guard. It contains a single function:
+
+```typescript
+export async function verifyAdminPage()
+```
+
+---
+
+## 🧠 What The Guard Does In Code
+
+```typescript
+// lib/verifyAdmin.ts
+
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
+
+export async function verifyAdminPage() {
+  // Step 1 — Get the cookie
+  const token = cookies().get("admin_token")?.value;
+
+  // Step 2 — No cookie? Leave immediately
+  if (!token) redirect("/admin/login");
+
+  try {
+    // Step 3 — Check if the JWT is real and not expired
+    const payload = jwt.verify(token, process.env.ADMIN_JWT_SECRET!) as any;
+
+    // Step 4 — Check if the role is "admin"
+    if (payload.role !== "admin") redirect("/admin/login");
+
+    // Step 5 — Everything passed, return the admin info
+    return payload;
+
+  } catch {
+    // JWT was fake, tampered with, or expired
+    redirect("/admin/login");
+  }
+}
+```
+
+---
+
+## 🏗️ How To Use It In A Protected Page
+
+Before this existed, every protected page had its own copy of the JWT checking code. That meant:
+- The same code in 5 places
+- If you change auth later, you have to update 5 places
+- Easy to forget one and leave a page unprotected
+
+Now every protected page does just this:
+
+```typescript
+// app/admin/dashboard/page.tsx
+
+import { verifyAdminPage } from "@/lib/verifyAdmin";
+
+export default async function DashboardPage() {
+
+  // This one line does ALL the checking
+  const admin = await verifyAdminPage();
+
+  // If you reach this line, the person is definitely the admin
+  // The redirect already happened if they weren't
+
+  return (
+    <div>
+      <h1>Welcome to the dashboard</h1>
+    </div>
+  );
+}
+```
+
+That is the whole thing. One line. The guard handles everything else.
+
+---
+
+## 🔁 Why One File Is Better Than Many
+
+Think of it like a key card machine at an office.
+
+You could put a separate lock on every single door with its own combination. But then:
+- You have to remember 10 combinations
+- Changing the security means changing 10 locks
+- You will forget to update one
+
+Or you could have one key card machine that every door uses. Change the machine once, all doors update automatically.
+
+`lib/verifyAdmin.ts` is the key card machine.
+
+---
+
+## 🔒 What This Protects Against
+
+| Attack | How The Guard Stops It |
+|---|---|
+| Someone types `/admin/dashboard` in the browser | No cookie → redirect |
+| Someone pastes a made-up cookie | JWT signature check fails → redirect |
+| Someone uses an old expired cookie | JWT expiry check fails → redirect |
+| Someone edits their cookie in browser devtools | Signature no longer matches → redirect |
+| A logged-in non-admin user | Role check fails → redirect |
+
+---
+
+## 🔁 How To Rebuild This In A New Project
+
+- [ ] Create `lib/verifyAdmin.ts`
+- [ ] Import `cookies` from `next/headers`, `redirect` from `next/navigation`, `jwt` from `jsonwebtoken`
+- [ ] Write `verifyAdminPage()` — get cookie → verify JWT → check role → redirect or return payload
+- [ ] In every protected page, call `const admin = await verifyAdminPage()` as the very first line
+- [ ] In every protected API route, call the same function before doing anything else
+- [ ] Make sure `ADMIN_JWT_SECRET` is in your `.env.local`
+
+---
+
+## 🧠 The One Sentence That Explains All Of This
+
+> Login proves who you are. The guard checks if you are still allowed inside. The guard checks every single time — not just once.
+
+---
+
+*Built with Next.js · MongoDB · Stripe · WebAuthn · @simplewebauthn v13*
+
+__________________________________________________________________________________________
+
+Shipping This app will use the fed ex api to simulate tracking and shipping flow. 
+1. in the developer portal create an organization
+2. select "Fed Ex Shipper" and fill out the form
+3. create an organization
+4. create a project
+5. select the ship api option
+
+APi's I selected for this project were: Address Validation API
+Comprehensive Rates and Transit Times API
+FedEx Locations Search API
+Pickup Request API
+Postal Code Validation API
+Ship API
+
+You will need to provid these values in the env file one fo rlocal testing 
+and the production values once the  product is ready for production
+
+FEDEX_CLIENT_ID=your_sandbox_client_id
+FEDEX_CLIENT_SECRET=your_sandbox_client_secret
+FEDEX_ACCOUNT_NUMBER=your_fedex_account_number
+FEDEX_API_URL=https://apis-sandbox.fedex.com

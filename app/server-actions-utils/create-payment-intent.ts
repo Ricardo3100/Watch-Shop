@@ -42,15 +42,26 @@ const minimalCart = cartItems.map((item) => ({
 }));
 const paymentIntent = await stripe.paymentIntents.create({
   amount: total * 100,
+  // reciept_email is a convenient way to
+  //  ensure we have the customer's email i
+  // n the PaymentIntent, which can be 
+  // useful for sending receipts and for our webhook processing.
+  //  We also include it in metadata as a fallback.
+  receipt_email: shipping.email,
   currency: "usd",
   automatic_payment_methods: { enabled: true },
-// we include shipping details in the
-//  PaymentIntent so that we have 
-// this information
+
+  metadata: {
+    
+    email: shipping.email, // for your webhook safety
+  },
+  // we include shipping details in the
+  //  PaymentIntent so that we have
+  // this information
   shipping: {
     name: shipping.fullName,
+
     address: {
-      
       line1: shipping.line1,
       city: shipping.city,
       state: shipping.state,
@@ -59,11 +70,9 @@ const paymentIntent = await stripe.paymentIntents.create({
     },
   },
 
-
-metadata: {
-  cart: JSON.stringify(minimalCart),
-},
-
+  metadata: {
+    cart: JSON.stringify(minimalCart),
+  },
 });
 
 
