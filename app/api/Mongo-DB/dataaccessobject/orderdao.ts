@@ -1,4 +1,6 @@
 import clientPromise from "../mongodb";
+import { ObjectId } from "mongodb"; // ✅ add this import
+
 export default class OrderDAO {
   private static async collection() {
     const dbName = process.env.Mongo_DB_Name;
@@ -15,40 +17,48 @@ export default class OrderDAO {
 
   static async findByPaymentIntent(paymentIntentId: string) {
     const collection = await this.collection();
-
     return await collection.findOne({
-      // this method checks if an order
-      // with the given Stripe P
-      // aymentIntent ID already exists in the database.
       stripePaymentIntentId: paymentIntentId,
     });
   }
 
   static async createOrder(order: any, session: any) {
     const collection = await this.collection();
-
-    // this method creates a new order
-    //  document in the "orders" collection.
-    // It takes an order object and a MongoDB
-    // session as parameters. The session is
-    // used to ensure that the order
-    // creation is part of a transaction, allowing
-    //  for atomic operations when combined
-    //  with other database actions (like
-    // updating product stock).
-    // The method returns the result of
-    //  the insert operation, which includes
-    // details about the newly created order document.
     return await collection.insertOne(order, { session });
+  }
+
+  static async findById(orderId: string) {
+    const collection = await this.collection();
+    return await collection.findOne({ _id: new ObjectId(orderId) }); // ✅ ObjectId not Object
+  }
+
+  static async updateShipment(orderId: string, trackingNumber: string) {
+    const collection = await this.collection();
+    return await collection.updateOne(
+      { _id: new ObjectId(orderId) },
+      {
+        $set: {
+          "shipping.tracking_number": trackingNumber,
+          fulfillmentStatus: "shipped", // ✅ was: status: "shipped"
+          shippedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  static async getPendingOrders(limit = 50) {
+    const collection = await this.collection();
+    return await collection
+      .find({ fulfillmentStatus: "pending" })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
   }
 
   static async getCompletedOrders(limit = 50) {
     const collection = await this.collection();
-
     return await collection
-      // adjust if your status differs
-      .find({ status: "paid" })
-      // newest first
+      .find({ paymentStatus: "paid" }) // ✅ was: status: "paid"
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray();

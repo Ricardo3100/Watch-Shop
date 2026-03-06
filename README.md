@@ -931,7 +931,8 @@ Shipping This app will use the fed ex api to simulate tracking and shipping flow
 4. create a project
 5. select the ship api option
 
-APi's I selected for this project were: Address Validation API
+APi's I selected for this project were:
+ Address Validation API
 Comprehensive Rates and Transit Times API
 FedEx Locations Search API
 Pickup Request API
@@ -945,3 +946,282 @@ FEDEX_CLIENT_ID=your_sandbox_client_id
 FEDEX_CLIENT_SECRET=your_sandbox_client_secret
 FEDEX_ACCOUNT_NUMBER=your_fedex_account_number
 FEDEX_API_URL=https://apis-sandbox.fedex.com
+
+<!-- Fed Ex Integration Section -->
+Step 1 — FedEx auth utility lib/fedex.ts
+Gets an OAuth token from FedEx before every API call. The OAuth endpoint issues an access token which is then used as credentials with each API transaction.
+
+Step 2 — Shipment API route api/admin/fedex-shipment/route.ts
+Takes an order ID, fetches the order from MongoDB, calls FedEx Ship API, gets tracking number back, saves it to the order.
+
+Step 3 — Locations API route api/admin/fedex-locations/route.ts
+Takes a postal code, returns nearby FedEx hold locations so the customer can choose one instead of home delivery.
+
+<!-- end of fed ex -->
+
+<!-- how to send emails -->
+
+This project uses brevo as the service for emails
+
+step 2 install it via this command : npm install @getbrevo/brevo@3.0.1
+
+ The mailer.ts is responsible for sending the email 
+
+ ---
+
+# 📦 FedEx Delivery Webhook (Production Pattern)
+
+## ⚠️ Cannot Be Tested In Sandbox
+FedEx's Advanced Integrated Visibility webhook is a paid production feature
+for US-based accounts only. It cannot be simulated in the sandbox.
+This section documents the pattern so it can be built when going live.
+
+---
+
+## 🧠 What Problem Does This Solve?
+
+Right now the email flow looks like this:
+
+​```
+Payment succeeds → customer gets order confirmation email ✅
+Admin ships       → customer gets tracking number email ✅
+Package delivers  → customer gets nothing ❌ ← this is the gap
+​```
+
+The FedEx delivery webhook fills that gap. Instead of your app
+asking FedEx "has this package been delivered yet?" every few minutes,
+FedEx rings YOUR doorbell the moment the status changes.
+
+This is the same pattern as the Stripe webhook — event happens
+on their side, they POST to your server, you react.
+
+---
+
+## 🔄 How It Works
+
+​```
+Package picked up by FedEx
+        ↓
+FedEx sends POST to /api/fedex-webhook with event: "IN_TRANSIT"
+        ↓
+Package arrives at local facility
+        ↓
+FedEx sends POST to /api/fedex-webhook with event: "OUT_FOR_DELIVERY"
+        ↓
+Package delivered
+        ↓
+FedEx sends POST to /api/fedex-webhook with event: "DELIVERED"
+        ↓
+Your server finds the order by tracking number
+        ↓
+Updates fulfillmentStatus to "delivered" in MongoDB
+        ↓
+Sends customer a "Your package has arrived" email via Brevo
+​```
+
+---
+
+## 🏗️ What Needs To Be Built
+
+### Step 1 — Register your webhook in FedEx Developer Portal
+1. Go to developer.fedex.com
+2. Create a new Webhook Project
+3. Add your callback URL: https://yourdomain.com/api/fedex-webhook
+4. Add a security token (generate one with crypto.randomBytes)
+5. Subscribe to the "Delivery Notifications" event category
+6. Add this to .env.local:
+
+​```bash
+FEDEX_WEBHOOK_SECRET=your_security_token_here
+​```
+
+### Step 2 — Add tracking number index to MongoDB
+Before building the webhook route, add an index so lookups
+by tracking number are fast:
+
+​```typescript
+// Run this once in your MongoDB setup
+db.collection("orders").createIndex({ "shipping.tracking_number": 1 });
+​```
+
+### Step 3 — Add findByTrackingNumber to OrderDAO
+
+​```typescript
+static async findByTrackingNumber(trackingNumber: string) {
+  const collection = await this.collection();
+  return await collection.findOne({
+    "shipping.tracking_number": trackingNumber,
+  });
+}
+
+static async markAsDelivered(orderId: string) {
+  const collection = await this.collection();
+  return await collection.updateOne(
+    { _id: new ObjectId(orderId) },
+    {
+      $set: {
+        fulfillmentStatus: "delivered",
+        deliveredAt: new Date(),
+      },
+    }
+  );
+}
+​```
+
+### Step 4 — Create the webhook route
+Create app/api/fedex-webhook/route.ts:
+
+​```typescript
+export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+import crypto from "crypto";
+import OrderDAO from "../../Mongo-DB/dataaccessobject/orderdao";
+import { sendDeliveryConfirmation } from "../../../lib/mailer";
+
+/**
+ * POST /api/fedex-webhook
+ *
+ * FedEx rings this doorbell every time a tracked
+ * package status changes. Just like the Stripe webhook
+ * but for physical package events instead of payments.
+ *
+ * We only care about the "DELIVERED" event.
+ * Everything else gets a polite "received" and is ignored.
+ *
+ * Security: FedEx signs every request with HMAC-SHA256.
+ * We verify the signature before doing anything.
+ * This prevents fake delivery notifications.
+ */
+export async function POST(req: Request) {
+  const body = await req.text();
+
+  // ----------------------------
+  // 🔐 STEP 1 — VERIFY THE SIGNATURE
+  // ----------------------------
+  // FedEx sends a base64 encoded HMAC-SHA256 signature
+  // in the fdx-signature header with every request.
+  // We generate our own signature using the same secret
+  // and compare. If they match, it really came from FedEx.
+  const fedexSignature = req.headers.get("fdx-signature");
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.FEDEX_WEBHOOK_SECRET!)
+    .update(body)
+    .digest("base64");
+
+  if (fedexSignature !== expectedSignature) {
+    console.error("FedEx webhook signature mismatch");
+    return NextResponse.json(
+      { error: "Invalid signature" },
+      { status: 401 }
+    );
+  }
+
+  const event = JSON.parse(body);
+
+  console.log("FedEx webhook event:", event.eventType);
+
+  // ----------------------------
+  // 🚨 STEP 2 — IGNORE NON-DELIVERY EVENTS
+  // ----------------------------
+  // FedEx sends many event types — picked up, in transit,
+  // out for delivery, exceptions, etc.
+  // We only care about the final delivered event.
+  if (event.eventType !== "DELIVERED") {
+    return NextResponse.json({ received: true });
+  }
+
+  // ----------------------------
+  // 📦 STEP 3 — FIND THE ORDER
+  // ----------------------------
+  const trackingNumber = event.trackingInfo?.trackingNumber;
+
+  if (!trackingNumber) {
+    return NextResponse.json({ received: true });
+  }
+
+  const order = await OrderDAO.findByTrackingNumber(trackingNumber);
+
+  if (!order) {
+    console.log("No order found for tracking number:", trackingNumber);
+    return NextResponse.json({ received: true });
+  }
+
+  // ----------------------------
+  // ✅ STEP 4 — UPDATE ORDER + SEND EMAIL
+  // ----------------------------
+  await OrderDAO.markAsDelivered(order._id.toString());
+
+  await sendDeliveryConfirmation({
+    to: order.email,
+    shippingName: order.shipping?.name || "Customer",
+    trackingNumber,
+  });
+
+  console.log("Order marked as delivered:", order._id.toString());
+
+  return NextResponse.json({ received: true });
+}
+​```
+
+### Step 5 — Add sendDeliveryConfirmation to lib/mailer.ts
+
+​```typescript
+export async function sendDeliveryConfirmation({
+  to,
+  shippingName,
+  trackingNumber,
+}: {
+  to: string;
+  shippingName: string;
+  trackingNumber: string;
+}) {
+  const sendSmtpEmail = new SendSmtpEmail();
+
+  sendSmtpEmail.sender = { name: FROM_NAME, email: FROM_EMAIL };
+  sendSmtpEmail.to = [{ email: to, name: shippingName }];
+  sendSmtpEmail.subject = "Your Watch Shop order has been delivered";
+  sendSmtpEmail.htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      
+      <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">
+        Your order has been delivered ✅
+      </h1>
+
+      <p style="color: #666; margin-bottom: 32px;">
+        Hi ${shippingName}, your Watch Shop order has been delivered.
+        We hope you enjoy your purchase.
+        If you have any issues with your order please reply to this email.
+      </p>
+
+      <p style="color: #999; font-size: 13px;">
+        Tracking number: <span style="font-family: monospace;">${trackingNumber}</span>
+      </p>
+
+    </div>
+  `;
+
+  await apiInstance.sendTransacEmail(sendSmtpEmail);
+  console.log(`Delivery confirmation sent to ${to}`);
+}
+​```
+
+---
+
+## 🔒 Why The Signature Check Matters
+
+Without it anyone could POST a fake "DELIVERED" event to your
+webhook URL and trigger a delivery email for an order that
+hasn't actually arrived. The HMAC signature check is the
+same defense pattern used in the Stripe webhook.
+
+---
+
+## 🚀 When You Are Ready To Go Live
+
+1. Upgrade to a real FedEx shipping account
+2. Register the webhook in FedEx Developer Portal
+3. Add FEDEX_WEBHOOK_SECRET to your production env variables
+4. Deploy — the route is already written and waiting
+
+When you go to production the only new work is registering the webhook URL in the FedEx portal and adding the secret to your env — the code is already written.

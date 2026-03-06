@@ -23,7 +23,7 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        <Link href="/admin/products">
+        <Link href="/admin/dashboard/products">
           <div className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition cursor-pointer">
             <h2 className="text-xl font-semibold">Products</h2>
             <p className="text-gray-600 mt-2">
@@ -41,7 +41,7 @@ export default async function AdminDashboard() {
           </div>
         </Link>
 
-        <Link href="/admin/dashboardshipping">
+        <Link href="/admin/dashboard/shipping">
           <div className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition cursor-pointer">
             <h2 className="text-xl font-semibold">Shipping</h2>
             <p className="text-gray-600 mt-2">

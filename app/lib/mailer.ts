@@ -1,0 +1,177 @@
+/**
+ * lib/mailer.ts
+ *
+ * This file does one job:
+ * Send emails via Brevo (formerly Sendinblue).
+ *
+ * Think of it like a post office worker.
+ * You hand them a letter (the email details)
+ * and they handle getting it delivered.
+ *
+ * Two functions are exported:
+ * 1. sendOrderConfirmation → sent to customer after payment
+ * 2. sendShippingNotification → sent to customer when shipped
+ *
+ * Both are called from server-side code only.
+ * Your API key never touches the browser.
+ */
+
+import {
+  TransactionalEmailsApi,
+  TransactionalEmailsApiApiKeys,
+  SendSmtpEmail,
+} from "@getbrevo/brevo";
+
+// ----------------------------
+// 📮 THE POST OFFICE (Brevo API client)
+// ----------------------------
+// We create this once and reuse it for every email.
+const sendSmtpEmail = new SendSmtpEmail();
+    // Set the API key for authentication
+const apiInstance = new TransactionalEmailsApi();
+
+apiInstance.setApiKey(
+  TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY!,
+);
+
+const FROM_EMAIL = process.env.BREVO_FROM_EMAIL!;
+const FROM_NAME = process.env.BREVO_FROM_NAME || "Watch Shop";
+
+// ----------------------------
+// 📧 EMAIL 1 — ORDER CONFIRMATION
+// ----------------------------
+// Sent to the customer immediately after payment succeeds.
+// Called from the Stripe webhook after createOrder().
+export async function sendOrderConfirmation({
+  to,
+  orderTotal,
+  items,
+  shippingName,
+}: {
+  to: string;
+  orderTotal: number;
+  items: { title: string; quantity: number; price: number }[];
+  shippingName: string;
+}) {
+  // Build the items list as HTML rows
+  const itemRows = items
+    .map(
+      (item) => `
+      <tr>
+        <td style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+          ${item.title} × ${item.quantity}
+        </td>
+        <td style="padding: 8px 0; border-bottom: 1px solid #f0f0f0; text-align: right;">
+          $${(item.price * item.quantity).toFixed(2)}
+        </td>
+      </tr>
+    `,
+    )
+    .join("");
+//  send email here
+const sendSmtpEmail = new SendSmtpEmail();
+
+  sendSmtpEmail.sender = { name: FROM_NAME, email: FROM_EMAIL };
+  sendSmtpEmail.to = [{ email: to, name: shippingName }];
+  sendSmtpEmail.subject = "Your Watch Shop order has been received";
+  sendSmtpEmail.htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      
+      <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">
+        Your order has been received ✅
+      </h1>
+      
+      <p style="color: #666; margin-bottom: 32px;">
+        Hi ${shippingName}, thank you for your purchase.
+        We have received your order and are preparing it for shipment.
+        You will receive another email with your tracking number once it ships.
+      </p>
+
+      <h2 style="font-size: 16px; font-weight: bold; margin-bottom: 16px;">
+        What you ordered
+      </h2>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+        ${itemRows}
+        <tr>
+          <td style="padding: 12px 0; font-weight: bold;">
+            Total charged
+          </td>
+          <td style="padding: 12px 0; font-weight: bold; text-align: right;">
+            $${orderTotal.toFixed(2)}
+          </td>
+        </tr>
+      </table>
+
+      <p style="color: #999; font-size: 13px;">
+        If you have any questions about your order please reply to this email.
+      </p>
+
+    </div>
+  `;
+
+  await apiInstance.sendTransacEmail(sendSmtpEmail);
+  console.log(`Order confirmation sent to ${to}`);
+}
+
+// ----------------------------
+// 📦 EMAIL 2 — SHIPPING NOTIFICATION
+// ----------------------------
+// Sent to the customer when the admin clicks
+// "Create FedEx Shipment for This Order".
+// Called from the FedEx shipment route after
+// OrderDAO.updateShipment() succeeds.
+export async function sendShippingNotification({
+  to,
+  trackingNumber,
+  shippingName,
+}: {
+  to: string;
+  trackingNumber: string;
+  shippingName: string;
+}) {
+  const trackingUrl = `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`;
+
+const sendSmtpEmail = new SendSmtpEmail();
+
+  sendSmtpEmail.sender = { name: FROM_NAME, email: FROM_EMAIL };
+  sendSmtpEmail.to = [{ email: to, name: shippingName }];
+  sendSmtpEmail.subject = "Your Watch Shop order has shipped";
+  sendSmtpEmail.htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      
+      <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">
+        Your order is on its way 📦
+      </h1>
+
+      <p style="color: #666; margin-bottom: 32px;">
+        Hi ${shippingName}, your Watch Shop order has been shipped via FedEx.
+        You can track your package using the link below.
+      </p>
+
+      <div style="background: #f9f9f9; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; color: #999; text-transform: uppercase; letter-spacing: 1px;">
+          Tracking Number
+        </p>
+        <p style="margin: 0 0 16px 0; font-size: 24px; font-weight: bold; font-family: monospace;">
+          ${trackingNumber}
+        </p>
+        <a 
+          href="${trackingUrl}"
+          style="display: inline-block; background: black; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px;"
+        >
+          Track your order on FedEx
+        </a>
+      </div>
+
+      <p style="color: #999; font-size: 13px;">
+        If you have any questions about your shipment please reply to this email.
+      </p>
+
+    </div>
+  `;
+
+  await apiInstance.sendTransacEmail(sendSmtpEmail);
+  console.log(`Shipping notification sent to ${to}`);
+}
