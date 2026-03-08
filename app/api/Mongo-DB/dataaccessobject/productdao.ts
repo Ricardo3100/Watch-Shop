@@ -111,9 +111,33 @@ export default class ProductDAO {
    */
   static async getAll() {
     const collection = await this.collection();
-
+    // MongoDB returns _id as an ObjectId,
+    // but we want to return it as a string for
+    // easier handling in the frontend.
     const products = await collection.find({}).toArray();
 
+    return products.map((product: any) => ({
+      ...product,
+      _id: product._id.toString(),
+      createdAt: product.createdAt?.toISOString?.() || product.createdAt,
+      updatedAt: product.updatedAt?.toISOString?.() || product.updatedAt,
+    }));
+  }
+  //  Get products by category ie smar watches, wrist watches, etc.
+  // Pulls all unique category values that exist in the database
+  // Used to populate the filter dropdown dynamically
+  static async getCategories(): Promise<string[]> {
+    const collection = await this.collection();
+    return await collection.distinct("category");
+  }
+
+  static async getByCategory(category: string) {
+    const collection = await this.collection();
+    const products = await collection.find({ category }).toArray();
+
+    // ✅ Same serialization as getAll
+    // MongoDB returns _id as ObjectId and dates as Date objects
+    // Next.js cannot pass these to client components directly
     return products.map((product: any) => ({
       ...product,
       _id: product._id.toString(),

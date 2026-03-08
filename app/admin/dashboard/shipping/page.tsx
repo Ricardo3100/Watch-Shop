@@ -1,8 +1,9 @@
 import { verifyAdminPage } from "../../../lib/verifyadmin";
 import OrderDAO from "../../../api/Mongo-DB/dataaccessobject/orderdao";
 import Link from "next/link";
-import { AiOutlineArrowLeft } from "react-icons/ai";
+import { AiOutlineArrowLeft, AiOutlineArrowRight } from "react-icons/ai";
 import ShipButton from "./shipbutton/page";
+import { safeDecrypt } from "../../../lib/encryption";
 
 export default async function ShippingPage() {
   await verifyAdminPage();
@@ -11,16 +12,19 @@ export default async function ShippingPage() {
   // so only unshipped paid orders appear here
   const orders = await OrderDAO.getPendingOrders();
 
-  const BackLink = (
-    <Link href="/admin/dashboard" className="flex items-center gap-2 mb-8">
-      <AiOutlineArrowLeft />
-      Back to Dashboard
-    </Link>
-  );
-
   return (
     <div className="min-h-screen bg-gray-100 p-10">
-      {BackLink}
+      <div className="flex justify-between items-center mb-8">
+        <Link href="/admin/dashboard" className="flex items-center gap-2">
+          <AiOutlineArrowLeft />
+          Back to Dashboard
+        </Link>
+        <Link href="/admin/orders" className="flex items-center gap-2">
+          To Orders
+          <AiOutlineArrowRight />
+        </Link>
+      </div>
+
       <h1 className="text-3xl font-bold mb-2">Shipping</h1>
       <p className="text-gray-500 mb-8">
         These orders have been paid and are waiting to be shipped.
@@ -66,14 +70,34 @@ export default async function ShippingPage() {
 
             <tbody className="bg-white divide-y divide-gray-200">
               {orders.map((order: any) => {
-                const shipping = order.shipping;
-                const address = shipping?.address;
+                // ----------------------------
+                // 🔓 DECRYPT PII FOR DISPLAY
+                // ----------------------------
+                // These fields were encrypted when the order
+                // was created in the Stripe webhook.
+                // We decrypt here only for display —
+                // the decrypted values exist in memory only
+                // for the duration of this page render.
+                const shippingName = safeDecrypt(order.shippingName) || "—";
+                const customerEmail = safeDecrypt(order.email) || "—";
 
-                const fullAddress = address
+                // shippingAddress was stored as an encrypted
+                // JSON string — decrypt then parse it back
+                // into an object so we can access the fields
+                const shippingAddress = (() => {
+                  try {
+                    const raw = safeDecrypt(order.shippingAddress);
+                    return raw ? JSON.parse(raw) : null;
+                  } catch {
+                    return null;
+                  }
+                })();
+
+                const fullAddress = shippingAddress
                   ? [
-                      address.line1,
-                      `${address.city}, ${address.state} ${address.postal_code}`,
-                      address.country,
+                      shippingAddress.line1,
+                      `${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.postal_code}`,
+                      shippingAddress.country,
                     ]
                       .filter(Boolean)
                       .join(", ")
@@ -81,14 +105,17 @@ export default async function ShippingPage() {
 
                 return (
                   <tr key={order._id.toString()} className="hover:bg-gray-50">
+                    {/* Customer name — decrypted */}
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {shipping?.name || "—"}
+                      {shippingName}
                     </td>
 
+                    {/* Customer email — decrypted */}
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      {order.email || "—"}
+                      {customerEmail}
                     </td>
 
+                    {/* Full address — decrypted and parsed */}
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {fullAddress}
                     </td>

@@ -4,7 +4,7 @@ import { Atkinson_Hyperlegible } from "next/font/google";
 import Navbar from "./components/Navbar";
 import { StateContext } from "./context/statecontext";
 import { Toaster } from "react-hot-toast";
-
+import Footer from "./components/Footer";
 const atkinson = Atkinson_Hyperlegible({
   subsets: ["latin"],
   weight: ["400", "700"], // regular + bold
@@ -29,6 +29,7 @@ export default function RootLayout({
           <Navbar />
           {children}
           <Toaster position="bottom-center" />
+          <Footer />
         </StateContext>
       </body>
     </html>

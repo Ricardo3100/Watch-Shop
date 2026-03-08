@@ -2,6 +2,7 @@ import Link from "next/link";
 import { verifyAdminPage } from "../../lib/verifyadmin";
 
 export default async function AdminDashboard() {
+  // Verify admin access to the dashboard
   const admin = await verifyAdminPage();
 
   return (

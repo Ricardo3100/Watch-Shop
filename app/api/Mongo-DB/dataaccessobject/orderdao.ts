@@ -1,5 +1,5 @@
 import clientPromise from "../mongodb";
-import { ObjectId } from "mongodb"; // ✅ add this import
+import { ObjectId } from "mongodb"; 
 
 export default class OrderDAO {
   private static async collection() {
@@ -61,6 +61,30 @@ export default class OrderDAO {
       .find({ paymentStatus: "paid" }) // ✅ was: status: "paid"
       .sort({ createdAt: -1 })
       .limit(limit)
+      .toArray();
+  }
+  // Deletes the full order document from MongoDB.
+  // Called in two places:
+  // 1. FedEx shipment route — after shipping email fires
+  // 2. Cron job — after 24 hours if admin never shipped
+  // After this runs nothing remains in MongoDB for this order.
+  static async deleteOrder(orderId: string) {
+    const collection = await this.collection();
+    await collection.deleteOne({ _id: new ObjectId(orderId) });
+    console.log(`Full order deleted: ${orderId}`);
+  }
+  // Find all orders that:
+  // - Were created more than 24 hours ago
+  // - Still have fulfillmentStatus: "pending"
+  // - Admin never manually shipped them
+  // Used by the cron job to auto-process stale orders.
+  static async getExpiredPendingOrders(cutoff: Date) {
+    const collection = await this.collection();
+    return await collection
+      .find({
+        fulfillmentStatus: "pending",
+        createdAt: { $lt: cutoff },
+      })
       .toArray();
   }
 }

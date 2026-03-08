@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { headers } from "next/headers";
+import { encrypt } from "../../lib/encryption";
 import { NextResponse } from "next/server";
 import clientPromise from "../Mongo-DB/mongodb";
 import productDAO from "../Mongo-DB/dataaccessobject/productdao";
@@ -181,16 +182,21 @@ try {
         });
       }
 
-      await orderDAO.createOrder(
+   await orderDAO.createOrder(
         {
           stripePaymentIntentId: paymentIntent.id,
           items: orderItems,
-          email,
-          shipping,
           total,
           paymentStatus: "paid",
           fulfillmentStatus: "pending",
           createdAt: new Date(),
+
+          // ✅ PII fields encrypted before saving
+          // Even if the database is breached these
+          // fields are unreadable without ENCRYPTION_KEY
+          email: encrypt(email),
+          shippingName: encrypt(shipping?.name || ""),
+          shippingAddress: encrypt(JSON.stringify(shipping?.address || {})),
         },
         session,
       );

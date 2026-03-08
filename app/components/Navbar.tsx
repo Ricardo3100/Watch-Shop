@@ -66,6 +66,9 @@ const Navbar = () => {
       <Link href="/" className="hidden md:inline-block font-bold text-lg">
         Zwatches
       </Link>
+      <Link href="/" className="hidden md:inline-block font-bold text-lg">
+        Home
+      </Link>
 
       {/* Search */}
       <div ref={searchRef} className="relative flex-1 max-w-md">

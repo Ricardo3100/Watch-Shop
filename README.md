@@ -36,17 +36,8 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 To test connection to mongo db use this file path ; http://localhost:3000/api/Mongo-DB/test-db-connection
 
-
-## License & Usage
-
-This project is licensed under the MIT License.
-
-**Intended use:**  
-This repository is primarily for **personal learning**, demonstrating **accessible coding pipelines**, and showcasing code during **interviews or screen shares**.  
-
-While the MIT License allows others to copy, modify, and distribute the code, please note that this project is **not intended for commercial use** without prior permission.
-
-# 🛍️ Watch Shop — Ecommerce with Accessible Design + Secure Admin
+ <!-- new read me starts here -->
+ # 🛍️ Watch Shop — Ecommerce with Accessible Design + Secure Admin
 
 **Intended use:**
 This repository is for personal learning, demonstrating accessible coding pipelines, and showcasing code during interviews or screen shares. While the MIT License allows others to copy and modify this code, it is not intended for commercial use without prior permission.
@@ -84,6 +75,7 @@ Create a `.env.local` file in the root of the project. It needs all of these:
 # Stripe
 STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 
 # WebAuthn (Passkey Login)
 WEBAUTHN_ORIGIN=http://localhost:3000
@@ -96,81 +88,23 @@ ADMIN_JWT_SECRET=your_long_random_secret_here
 # MongoDB
 MONGODB_URI=mongodb+srv://...
 Mongo_DB_Name=your_database_name
-```
 
-> ⚠️ Never commit `.env.local` to Git. Add it to `.gitignore`.
+# FedEx Shipping
+FEDEX_CLIENT_ID=
+FEDEX_CLIENT_SECRET=
+FEDEX_ACCOUNT_NUMBER=
+FEDEX_API_URL=https://apis-sandbox.fedex.com
 
----
+# Brevo Transactional Email
+BREVO_API_KEY=
+BREVO_FROM_EMAIL=
+BREVO_FROM_NAME=Watch Shop
 
-## 🚀 How To Run The Project
+# PII Encryption
+ENCRYPTION_KEY=your_64_character_hex_string_here
 
-```bash
-# Step 1 — Install dependencies
-npm install
-
-# Step 2 — Add your environment variables (see above)
-
-# Step 3 — Run the development server
-npm run dev
-
-# Step 4 — Open in browser
-http://localhost:3000
-```
-
----
-
----
-
-# 🛍️ Watch Shop — Ecommerce with Accessible Design + Secure Admin
-
-**Intended use:**
-This repository is for personal learning, demonstrating accessible coding pipelines, and showcasing code during interviews or screen shares. While the MIT License allows others to copy and modify this code, it is not intended for commercial use without prior permission.
-
----
-
-## 🧠 Design Philosophy
-
-This project is built with cognitive accessibility at its core.
-
-Most ecommerce sites show a button that says **"Pay $20"**.
-
-This project shows: **"You will be charged $20 for this item."**
-
-That one change helps users with cognitive impairments understand exactly what is about to happen before they commit. Every design decision in this project follows that same principle — say the full thing, never assume the user already knows.
-
----
-
-## 📦 What This Project Contains
-
-- A Next.js ecommerce shop (watches)
-- Full shopping cart
-- Stripe payments with webhooks
-- Passwordless admin login using passkeys (WebAuthn)
-- MongoDB database
-- Accessible UI design throughout
-
----
-
-## 🔑 Environment Variables — Master List
-
-Create a `.env.local` file in the root of the project. It needs all of these:
-
-```bash
-# Stripe
-STRIPE_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-
-# WebAuthn (Passkey Login)
-WEBAUTHN_ORIGIN=http://localhost:3000
-WEBAUTHN_RP_ID=localhost
-WEBAUTHN_RP_NAME=Watch Shop Admin
-
-# Admin Session
-ADMIN_JWT_SECRET=your_long_random_secret_here
-
-# MongoDB
-MONGODB_URI=mongodb+srv://...
-Mongo_DB_Name=your_database_name
+# Cron Job Security
+CRON_SECRET=your_64_character_hex_string_here
 ```
 
 > ⚠️ Never commit `.env.local` to Git. Add it to `.gitignore`.
@@ -719,6 +653,348 @@ This section will be expanded as the pipeline is built.
 
 ---
 
+# 📦 FedEx Shipping Integration
+
+## What This Does
+
+When the admin clicks the Ship button on the shipping page, this project:
+
+1. Verifies the admin is logged in
+2. Fetches the order from MongoDB and decrypts the PII
+3. Validates the recipient country is supported by FedEx sandbox
+4. Gets a short-lived FedEx OAuth token
+5. Sends a shipment request to the FedEx sandbox API
+6. Extracts the tracking number from the response
+7. Saves the tracking number to MongoDB
+8. Sends a shipping notification email to the customer
+9. Deletes the full order record from MongoDB
+
+---
+
+## 🔑 How To Get FedEx Sandbox Credentials
+
+1. Go to [developer.fedex.com](https://developer.fedex.com)
+2. Create a free developer account
+3. Create a new project — select **Ship API**
+4. Copy the **Client ID** and **Client Secret** into your `.env.local`
+5. Your **Account Number** is in your FedEx profile
+
+```bash
+FEDEX_CLIENT_ID=your_client_id
+FEDEX_CLIENT_SECRET=your_client_secret
+FEDEX_ACCOUNT_NUMBER=your_account_number
+FEDEX_API_URL=https://apis-sandbox.fedex.com
+```
+
+> For production change `FEDEX_API_URL` to `https://apis.fedex.com`
+
+---
+
+## 🌍 Supported Countries (Sandbox)
+
+The FedEx sandbox only accepts shipments to certain countries. The route validates this before calling FedEx so the admin gets a clear error instead of a cryptic FedEx response.
+
+```typescript
+const SUPPORTED_COUNTRIES = [
+  "US", "CA", "GB", "AU", "DE", "FR", "JP", "MX", "NL", "IT"
+];
+```
+
+---
+
+## 🔄 Authentication Flow
+
+FedEx uses OAuth2. A token is fetched fresh on every shipment request — they are short lived and cannot be stored.
+
+```typescript
+// lib/fedex.ts
+export async function getFedExToken() {
+  const res = await fetch(`${process.env.FEDEX_API_URL}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: process.env.FEDEX_CLIENT_ID!,
+      client_secret: process.env.FEDEX_CLIENT_SECRET!,
+    }),
+  });
+  const data = await res.json();
+  return data.access_token;
+}
+```
+
+---
+
+## 📍 Tracking Numbers in Sandbox
+
+Sandbox tracking numbers are real-looking but static. They will appear on `fedex.com/fedextrack` but will never update their status. This is expected — sandbox does not simulate delivery events.
+
+---
+
+## 🚨 Common FedEx Errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `RECIPIENT.COUNTRY.INVALID` | Country not in supported list | Validate against `SUPPORTED_COUNTRIES` before calling |
+| `REQUESTEDSHIPMENT.LABELSPECIFICATION.REQUIRED` | Missing label spec block | Add `labelSpecification` with `labelFormatType`, `imageType`, `labelStockType` |
+| `401 Unauthorized` | Token expired or wrong credentials | Check `FEDEX_CLIENT_ID` and `FEDEX_CLIENT_SECRET` |
+| No tracking number returned | Wrong path in response | Check `output.transactionShipments[0].masterTrackingNumber` |
+
+---
+
+---
+
+# 📧 Brevo Transactional Emails
+
+## What This Does
+
+This project sends three transactional emails via the Brevo API:
+
+| Email | Triggered by | Recipient |
+|---|---|---|
+| Order confirmation | Stripe webhook after payment | Customer |
+| Shipping notification | Admin clicks ship button | Customer |
+| Demo completion | Cron job after 24 hours | Customer |
+
+---
+
+## 🔑 How To Get Brevo Credentials
+
+1. Create a free account at [brevo.com](https://brevo.com)
+2. Go to **SMTP & API → API Keys**
+3. Create a new API key
+4. Add to `.env.local`:
+
+```bash
+BREVO_API_KEY=your_api_key
+BREVO_FROM_EMAIL=your_verified_sender_email
+BREVO_FROM_NAME=Watch Shop
+```
+
+> The `BREVO_FROM_EMAIL` must be a verified sender in your Brevo account.
+
+---
+
+## 📦 Installation
+
+```bash
+npm install @getbrevo/brevo
+```
+
+---
+
+## 🧱 Setup Pattern
+
+```typescript
+// lib/mailer.ts
+import {
+  TransactionalEmailsApi,
+  TransactionalEmailsApiApiKeys,
+  SendSmtpEmail
+} from "@getbrevo/brevo";
+
+const apiInstance = new TransactionalEmailsApi();
+apiInstance.setApiKey(
+  TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY!
+);
+```
+
+> ⚠️ Do not use Zoho free tier SMTP for transactional email. Free Zoho plans block SMTP authentication. Use Brevo instead.
+
+---
+
+---
+
+# 🔒 PII Encryption (AES-256-GCM)
+
+## Why This Exists
+
+Customer PII (name, email, shipping address) is stored encrypted in MongoDB. If the database is ever breached, those fields are unreadable without the encryption key.
+
+This project uses **field-level encryption** — only the PII fields are encrypted, not the entire document. This means:
+
+- Non-PII fields (total, items, status) are readable without decryption
+- Only the fields that could identify a person are protected
+- Easy to explain in interviews: "I encrypted these specific fields because they are PII"
+
+---
+
+## 🔑 How To Generate The Encryption Key
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+The result is a 64 character hex string representing 32 bytes — the exact key size required for AES-256.
+
+```bash
+ENCRYPTION_KEY=paste_64_character_result_here
+```
+
+---
+
+## 🔐 The Algorithm — AES-256-GCM
+
+| Part | What It Means |
+|---|---|
+| AES | Advanced Encryption Standard — used by banks and governments |
+| 256 | 256 bit key — extremely hard to brute force |
+| GCM | Galois/Counter Mode — includes an authentication tag that proves data was not tampered with |
+
+---
+
+## 🧱 The Encryption Utility
+
+All encryption and decryption lives in one file: `lib/encryption.ts`
+
+```typescript
+encrypt(value: string)      // encrypts a string → returns "iv:authTag:encrypted"
+decrypt(value: string)      // decrypts back to original string
+safeDecrypt(value: string)  // same as decrypt but returns null instead of throwing
+```
+
+Every encrypted value is stored as a single string in the format:
+
+```
+iv:authTag:encryptedData
+```
+
+A new random IV (initialisation vector) is generated for every encryption. This means encrypting the same value twice produces different output each time — making the encrypted data harder to analyse.
+
+---
+
+## 📍 Where Encryption Happens
+
+| Location | Action |
+|---|---|
+| Stripe webhook | `encrypt()` called before saving order to MongoDB |
+| Shipping page | `safeDecrypt()` called when rendering the table |
+| Orders page | `safeDecrypt()` called when rendering the table |
+| FedEx shipment route | `decrypt()` called before building the FedEx payload |
+| Cron job | `safeDecrypt()` called before sending the demo completion email |
+
+---
+
+## 🔁 How To Rebuild This In A New Project
+
+- [ ] Generate key: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- [ ] Add `ENCRYPTION_KEY` to `.env.local`
+- [ ] Create `lib/encryption.ts` with `encrypt`, `decrypt`, `safeDecrypt`
+- [ ] Call `encrypt()` on PII fields before any MongoDB write
+- [ ] Call `safeDecrypt()` on PII fields before any display
+- [ ] Call `decrypt()` on PII fields when you need the value for an API call (FedEx, email, etc)
+- [ ] Never write decrypted PII back to the database
+
+---
+
+---
+
+# ⏰ Auto-Deletion Cron Job
+
+## What This Does
+
+If the admin does not ship an order within 24 hours of it being placed, a Vercel Cron Job automatically:
+
+1. Finds all orders older than 24 hours with `fulfillmentStatus: "pending"`
+2. Decrypts the PII to get the customer email
+3. Sends a demo completion email to the customer
+4. Deletes the full order record from MongoDB
+
+After this runs, nothing remains in the database for that order.
+
+---
+
+## 🔄 The Full Lifecycle
+
+```
+Order placed
+      ↓
+PII encrypted and saved to orders collection
+Order confirmation email fires
+      ↓
+Admin ships within 24 hours?
+      ↓ YES → Shipping email fires → Full order deleted ✅
+      ↓ NO  → Cron job fires at 9am UTC → Demo completion email fires → Full order deleted ✅
+      ↓
+After 24 hours — nothing remains in MongoDB ✅
+```
+
+---
+
+## 📁 File Locations
+
+```
+app/api/cron/process-pending-orders/route.ts  ← the cron route
+vercel.json                                    ← tells Vercel when to run it
+```
+
+---
+
+## ⚙️ Vercel Configuration
+
+`vercel.json` lives at the root of the project (same level as `package.json`):
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron/process-pending-orders",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}
+```
+
+`0 9 * * *` means every day at 9am UTC.
+
+> ⚠️ Vercel free tier only supports daily cron jobs. Hourly requires Vercel Pro.
+
+---
+
+## 🔐 Security
+
+The cron route is protected by a secret. Vercel sends it in the `Authorization` header automatically. Without this check, anyone who finds the URL could trigger mass deletion.
+
+```bash
+# Generate with:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Add to .env.local:
+CRON_SECRET=paste_result_here
+```
+
+The route checks:
+
+```typescript
+const authHeader = req.headers.get("authorization");
+if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+```
+
+---
+
+## 📧 The Demo Completion Email
+
+This email is sent when the cron job fires. It tells the customer:
+
+- Their tracking number
+- That this was a demo project
+- That all their personal data has been permanently deleted
+
+This is a deliberate transparency decision — the customer receives written confirmation that their PII is gone.
+
+---
+
+## 🚨 What If There Is No Tracking Number?
+
+If FedEx was never called for an order (the admin never clicked ship), there is no tracking number. In that case the cron job skips the email but still deletes the order. No email is better than a broken email.
+
+---
+
+---
+
 # 🔁 Full Rebuild Checklist
 
 If you have lost all memory of this project but still know how to code, follow these steps in order.
@@ -748,6 +1024,47 @@ If you have lost all memory of this project but still know how to code, follow t
 - [ ] Create `admin/login/page.tsx` — trigger auth challenge + verify flow
 - [ ] Protect `admin/dashboard/page.tsx` — verify JWT cookie server-side, redirect if invalid
 - [ ] Add `verifyAdmin()` helper to every `/api/admin/*` route
+
+## PII Encryption
+
+- [ ] Generate key: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- [ ] Add `ENCRYPTION_KEY` to `.env.local`
+- [ ] Create `lib/encryption.ts` with `encrypt`, `decrypt`, `safeDecrypt` using `aes-256-gcm`
+- [ ] In Stripe webhook — wrap `email`, `shippingName`, `shippingAddress` in `encrypt()` before saving
+- [ ] In shipping page — use `safeDecrypt()` on all PII fields before rendering
+- [ ] In orders page — use `safeDecrypt()` on all PII fields before rendering
+- [ ] In FedEx route — use `decrypt()` before building payload and sending email
+
+## FedEx Shipping
+
+- [ ] Create developer account at developer.fedex.com
+- [ ] Add `FEDEX_CLIENT_ID`, `FEDEX_CLIENT_SECRET`, `FEDEX_ACCOUNT_NUMBER`, `FEDEX_API_URL` to env
+- [ ] Create `lib/fedex.ts` — `getFedExToken()` fetches OAuth token via `application/x-www-form-urlencoded`
+- [ ] Create `app/api/admin/fedex-shipment/route.ts` — verify admin, decrypt PII, validate country, get token, build payload, call `/ship/v1/shipments`
+- [ ] Add `labelSpecification` block to payload — required or FedEx returns an error
+- [ ] Extract tracking number from `output.transactionShipments[0].masterTrackingNumber`
+- [ ] Call `OrderDAO.updateShipment()` to save tracking number
+- [ ] Send shipping notification email
+- [ ] Call `OrderDAO.deleteOrder()` after email fires
+
+## Brevo Email
+
+- [ ] Create account at brevo.com and verify sender email
+- [ ] `npm install @getbrevo/brevo`
+- [ ] Add `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `BREVO_FROM_NAME` to env
+- [ ] Create `lib/mailer.ts` — init `TransactionalEmailsApi`, set API key
+- [ ] Add `sendOrderConfirmation()` — called from Stripe webhook
+- [ ] Add `sendShippingNotification()` — called from FedEx shipment route
+- [ ] Add `sendDemoCompletionEmail()` — called from cron job
+
+## Auto-Deletion Cron Job
+
+- [ ] Generate cron secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- [ ] Add `CRON_SECRET` to `.env.local`
+- [ ] Create `vercel.json` at root with `crons` schedule (`0 9 * * *` for daily at 9am UTC)
+- [ ] Create `app/api/cron/process-pending-orders/route.ts` — verify `CRON_SECRET`, find expired orders, decrypt PII, send demo completion email, delete full order
+- [ ] Add `getExpiredPendingOrders(cutoff: Date)` to `OrderDAO` — finds pending orders older than cutoff
+- [ ] Add `deleteOrder(orderId)` to `OrderDAO` — deletes full order document
 
 ---
 
@@ -921,307 +1238,3 @@ Or you could have one key card machine that every door uses. Change the machine 
 ---
 
 *Built with Next.js · MongoDB · Stripe · WebAuthn · @simplewebauthn v13*
-
-__________________________________________________________________________________________
-
-Shipping This app will use the fed ex api to simulate tracking and shipping flow. 
-1. in the developer portal create an organization
-2. select "Fed Ex Shipper" and fill out the form
-3. create an organization
-4. create a project
-5. select the ship api option
-
-APi's I selected for this project were:
- Address Validation API
-Comprehensive Rates and Transit Times API
-FedEx Locations Search API
-Pickup Request API
-Postal Code Validation API
-Ship API
-
-You will need to provid these values in the env file one fo rlocal testing 
-and the production values once the  product is ready for production
-
-FEDEX_CLIENT_ID=your_sandbox_client_id
-FEDEX_CLIENT_SECRET=your_sandbox_client_secret
-FEDEX_ACCOUNT_NUMBER=your_fedex_account_number
-FEDEX_API_URL=https://apis-sandbox.fedex.com
-
-<!-- Fed Ex Integration Section -->
-Step 1 — FedEx auth utility lib/fedex.ts
-Gets an OAuth token from FedEx before every API call. The OAuth endpoint issues an access token which is then used as credentials with each API transaction.
-
-Step 2 — Shipment API route api/admin/fedex-shipment/route.ts
-Takes an order ID, fetches the order from MongoDB, calls FedEx Ship API, gets tracking number back, saves it to the order.
-
-Step 3 — Locations API route api/admin/fedex-locations/route.ts
-Takes a postal code, returns nearby FedEx hold locations so the customer can choose one instead of home delivery.
-
-<!-- end of fed ex -->
-
-<!-- how to send emails -->
-
-This project uses brevo as the service for emails
-
-step 2 install it via this command : npm install @getbrevo/brevo@3.0.1
-
- The mailer.ts is responsible for sending the email 
-
- ---
-
-# 📦 FedEx Delivery Webhook (Production Pattern)
-
-## ⚠️ Cannot Be Tested In Sandbox
-FedEx's Advanced Integrated Visibility webhook is a paid production feature
-for US-based accounts only. It cannot be simulated in the sandbox.
-This section documents the pattern so it can be built when going live.
-
----
-
-## 🧠 What Problem Does This Solve?
-
-Right now the email flow looks like this:
-
-​```
-Payment succeeds → customer gets order confirmation email ✅
-Admin ships       → customer gets tracking number email ✅
-Package delivers  → customer gets nothing ❌ ← this is the gap
-​```
-
-The FedEx delivery webhook fills that gap. Instead of your app
-asking FedEx "has this package been delivered yet?" every few minutes,
-FedEx rings YOUR doorbell the moment the status changes.
-
-This is the same pattern as the Stripe webhook — event happens
-on their side, they POST to your server, you react.
-
----
-
-## 🔄 How It Works
-
-​```
-Package picked up by FedEx
-        ↓
-FedEx sends POST to /api/fedex-webhook with event: "IN_TRANSIT"
-        ↓
-Package arrives at local facility
-        ↓
-FedEx sends POST to /api/fedex-webhook with event: "OUT_FOR_DELIVERY"
-        ↓
-Package delivered
-        ↓
-FedEx sends POST to /api/fedex-webhook with event: "DELIVERED"
-        ↓
-Your server finds the order by tracking number
-        ↓
-Updates fulfillmentStatus to "delivered" in MongoDB
-        ↓
-Sends customer a "Your package has arrived" email via Brevo
-​```
-
----
-
-## 🏗️ What Needs To Be Built
-
-### Step 1 — Register your webhook in FedEx Developer Portal
-1. Go to developer.fedex.com
-2. Create a new Webhook Project
-3. Add your callback URL: https://yourdomain.com/api/fedex-webhook
-4. Add a security token (generate one with crypto.randomBytes)
-5. Subscribe to the "Delivery Notifications" event category
-6. Add this to .env.local:
-
-​```bash
-FEDEX_WEBHOOK_SECRET=your_security_token_here
-​```
-
-### Step 2 — Add tracking number index to MongoDB
-Before building the webhook route, add an index so lookups
-by tracking number are fast:
-
-​```typescript
-// Run this once in your MongoDB setup
-db.collection("orders").createIndex({ "shipping.tracking_number": 1 });
-​```
-
-### Step 3 — Add findByTrackingNumber to OrderDAO
-
-​```typescript
-static async findByTrackingNumber(trackingNumber: string) {
-  const collection = await this.collection();
-  return await collection.findOne({
-    "shipping.tracking_number": trackingNumber,
-  });
-}
-
-static async markAsDelivered(orderId: string) {
-  const collection = await this.collection();
-  return await collection.updateOne(
-    { _id: new ObjectId(orderId) },
-    {
-      $set: {
-        fulfillmentStatus: "delivered",
-        deliveredAt: new Date(),
-      },
-    }
-  );
-}
-​```
-
-### Step 4 — Create the webhook route
-Create app/api/fedex-webhook/route.ts:
-
-​```typescript
-export const runtime = "nodejs";
-
-import { NextResponse } from "next/server";
-import crypto from "crypto";
-import OrderDAO from "../../Mongo-DB/dataaccessobject/orderdao";
-import { sendDeliveryConfirmation } from "../../../lib/mailer";
-
-/**
- * POST /api/fedex-webhook
- *
- * FedEx rings this doorbell every time a tracked
- * package status changes. Just like the Stripe webhook
- * but for physical package events instead of payments.
- *
- * We only care about the "DELIVERED" event.
- * Everything else gets a polite "received" and is ignored.
- *
- * Security: FedEx signs every request with HMAC-SHA256.
- * We verify the signature before doing anything.
- * This prevents fake delivery notifications.
- */
-export async function POST(req: Request) {
-  const body = await req.text();
-
-  // ----------------------------
-  // 🔐 STEP 1 — VERIFY THE SIGNATURE
-  // ----------------------------
-  // FedEx sends a base64 encoded HMAC-SHA256 signature
-  // in the fdx-signature header with every request.
-  // We generate our own signature using the same secret
-  // and compare. If they match, it really came from FedEx.
-  const fedexSignature = req.headers.get("fdx-signature");
-  const expectedSignature = crypto
-    .createHmac("sha256", process.env.FEDEX_WEBHOOK_SECRET!)
-    .update(body)
-    .digest("base64");
-
-  if (fedexSignature !== expectedSignature) {
-    console.error("FedEx webhook signature mismatch");
-    return NextResponse.json(
-      { error: "Invalid signature" },
-      { status: 401 }
-    );
-  }
-
-  const event = JSON.parse(body);
-
-  console.log("FedEx webhook event:", event.eventType);
-
-  // ----------------------------
-  // 🚨 STEP 2 — IGNORE NON-DELIVERY EVENTS
-  // ----------------------------
-  // FedEx sends many event types — picked up, in transit,
-  // out for delivery, exceptions, etc.
-  // We only care about the final delivered event.
-  if (event.eventType !== "DELIVERED") {
-    return NextResponse.json({ received: true });
-  }
-
-  // ----------------------------
-  // 📦 STEP 3 — FIND THE ORDER
-  // ----------------------------
-  const trackingNumber = event.trackingInfo?.trackingNumber;
-
-  if (!trackingNumber) {
-    return NextResponse.json({ received: true });
-  }
-
-  const order = await OrderDAO.findByTrackingNumber(trackingNumber);
-
-  if (!order) {
-    console.log("No order found for tracking number:", trackingNumber);
-    return NextResponse.json({ received: true });
-  }
-
-  // ----------------------------
-  // ✅ STEP 4 — UPDATE ORDER + SEND EMAIL
-  // ----------------------------
-  await OrderDAO.markAsDelivered(order._id.toString());
-
-  await sendDeliveryConfirmation({
-    to: order.email,
-    shippingName: order.shipping?.name || "Customer",
-    trackingNumber,
-  });
-
-  console.log("Order marked as delivered:", order._id.toString());
-
-  return NextResponse.json({ received: true });
-}
-​```
-
-### Step 5 — Add sendDeliveryConfirmation to lib/mailer.ts
-
-​```typescript
-export async function sendDeliveryConfirmation({
-  to,
-  shippingName,
-  trackingNumber,
-}: {
-  to: string;
-  shippingName: string;
-  trackingNumber: string;
-}) {
-  const sendSmtpEmail = new SendSmtpEmail();
-
-  sendSmtpEmail.sender = { name: FROM_NAME, email: FROM_EMAIL };
-  sendSmtpEmail.to = [{ email: to, name: shippingName }];
-  sendSmtpEmail.subject = "Your Watch Shop order has been delivered";
-  sendSmtpEmail.htmlContent = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-      
-      <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">
-        Your order has been delivered ✅
-      </h1>
-
-      <p style="color: #666; margin-bottom: 32px;">
-        Hi ${shippingName}, your Watch Shop order has been delivered.
-        We hope you enjoy your purchase.
-        If you have any issues with your order please reply to this email.
-      </p>
-
-      <p style="color: #999; font-size: 13px;">
-        Tracking number: <span style="font-family: monospace;">${trackingNumber}</span>
-      </p>
-
-    </div>
-  `;
-
-  await apiInstance.sendTransacEmail(sendSmtpEmail);
-  console.log(`Delivery confirmation sent to ${to}`);
-}
-​```
-
----
-
-## 🔒 Why The Signature Check Matters
-
-Without it anyone could POST a fake "DELIVERED" event to your
-webhook URL and trigger a delivery email for an order that
-hasn't actually arrived. The HMAC signature check is the
-same defense pattern used in the Stripe webhook.
-
----
-
-## 🚀 When You Are Ready To Go Live
-
-1. Upgrade to a real FedEx shipping account
-2. Register the webhook in FedEx Developer Portal
-3. Add FEDEX_WEBHOOK_SECRET to your production env variables
-4. Deploy — the route is already written and waiting
-
-When you go to production the only new work is registering the webhook URL in the FedEx portal and adding the secret to your env — the code is already written.

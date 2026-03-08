@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import { verifyAdminApi } from "../../../lib/verifyadmin";
 import { getFedExToken } from "../../../lib/fedex";
 import OrderDAO from "../../Mongo-DB/dataaccessobject/orderdao";
+import { safeDecrypt } from "../../../lib/encryption";
+// import the encryption file here so we can 
+// decrypt the FedEx credentials before using 
+// them in the API call
+import { decrypt } from "../../../lib/encryption";
 
 /**
  * POST /api/admin/fedex-shipment
@@ -48,24 +53,49 @@ export async function POST(req: Request) {
     }
 
     // Step 2 — fetch the order from MongoDB
+    // Step 2 — fetch the order from MongoDB
     const order = await OrderDAO.findById(orderId);
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (!order.shipping?.address) {
+    // Step 3 — decrypt PII fields
+    // PII was encrypted when the order was created
+    // in the Stripe webhook using AES-256-GCM.
+    // We decrypt here so we can use the values for
+    // the FedEx request and the shipping email.
+    // The decrypted values only exist in memory —
+    // they are never written back to the database.
+    // The entire order is deleted after the email fires.
+    let shippingName: string;
+    let shippingAddress: any;
+    let customerEmail: string;
+
+    try {
+      shippingName = decrypt(order.shippingName) || "Customer";
+      shippingAddress = JSON.parse(decrypt(order.shippingAddress));
+      customerEmail = decrypt(order.email);
+    } catch (err) {
+      console.error("Failed to decrypt order PII:", err);
+      return NextResponse.json(
+        { error: "Failed to read order details" },
+        { status: 500 },
+      );
+    }
+
+    if (!shippingAddress) {
       return NextResponse.json(
         { error: "Order has no shipping address" },
         { status: 400 },
       );
     }
 
-    // Step 3 — validate the recipient country
+    // Step 4 — validate the recipient country
     // FedEx sandbox only supports certain country codes.
     // We catch this early so the admin gets a clear message
     // instead of a cryptic FedEx error.
-    const recipientCountry = order.shipping?.address?.country;
+    const recipientCountry = shippingAddress?.country; // ✅ from decrypted address
 
     if (!recipientCountry || !SUPPORTED_COUNTRIES.includes(recipientCountry)) {
       return NextResponse.json(
@@ -76,11 +106,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // Step 4 — get FedEx OAuth token
+    // Step 5 — get FedEx OAuth token
     // This is a short-lived token — we get a fresh one each request
     const token = await getFedExToken();
-
+    // Step 6 — build the shipment request payload
     // Step 5 — build the shipment request payload
+    // Recipients use decrypted PII values from Step 3
+    // The shipper block uses your business address —
+    // replace with your real address for production
     const shipmentPayload = {
       labelResponseOptions: "URL_ONLY",
       requestedShipment: {
@@ -107,18 +140,18 @@ export async function POST(req: Request) {
         recipients: [
           {
             contact: {
-              personName: order.shipping.name || "Customer",
-              phoneNumber: order.shipping.phone || "0000000000",
+              personName: shippingName, // ✅ decrypted
+              phoneNumber: "0000000000",
             },
             address: {
               streetLines: [
-                order.shipping.address.line1,
-                order.shipping.address.line2 || "",
+                shippingAddress.line1, // ✅ decrypted
+                shippingAddress.line2 || "",
               ].filter(Boolean),
-              city: order.shipping.address.city,
-              stateOrProvinceCode: order.shipping.address.state?.trim() || "CA",
-              postalCode: order.shipping.address.postal_code,
-              countryCode: order.shipping.address.country,
+              city: shippingAddress.city, // ✅ decrypted
+              stateOrProvinceCode: shippingAddress.state?.trim() || "CA",
+              postalCode: shippingAddress.postal_code,
+              countryCode: shippingAddress.country,
             },
           },
         ],
@@ -163,21 +196,8 @@ export async function POST(req: Request) {
         body: JSON.stringify(shipmentPayload),
       },
     );
-
-    const fedexData = await fedexRes.json();
-
-    console.log("FedEx response:", JSON.stringify(fedexData, null, 2));
-
-    if (!fedexRes.ok) {
-      console.error("FedEx shipment failed:", fedexData);
-      return NextResponse.json(
-        { error: "FedEx shipment creation failed", details: fedexData },
-        { status: 500 },
-      );
-    }
-
     // Step 7 — extract tracking number
-    // ✅ declared only once — the duplicate was causing the 500 error
+    // Declared only once — the duplicate was causing the 500 error
     const trackingNumber =
       fedexData?.output?.transactionShipments?.[0]?.masterTrackingNumber;
 
@@ -194,21 +214,9 @@ export async function POST(req: Request) {
     // Step 8 — save tracking number to MongoDB
     // This also updates fulfillmentStatus to "shipped"
     // so the order disappears from the pending shipping queue
-    // Step 8 — save tracking number to MongoDB
     try {
       await OrderDAO.updateShipment(orderId, trackingNumber);
       console.log("MongoDB updated successfully");
-
-      // ✅ Step 9 — send shipping notification email to customer
-      // We have everything we need at this point:
-      // - order.email → who to send to
-      // - trackingNumber → just returned by FedEx
-      // - order.shipping.name → customer name for the greeting
-      await sendShippingNotification({
-        to: order.email,
-        trackingNumber,
-        shippingName: order.shipping?.name || "Customer",
-      });
     } catch (dbErr) {
       console.error("MongoDB update failed:", dbErr);
       return NextResponse.json(
@@ -216,6 +224,26 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+
+    // Step 9 — send shipping notification email to customer
+    // We use the decrypted values from Step 3 —
+    // they are still in memory at this point.
+    // We do NOT read from the database again because
+    // the PII is about to be deleted.
+    await sendShippingNotification({
+      to: customerEmail, // ✅ decrypted in Step 3
+      trackingNumber,
+      shippingName, // ✅ decrypted in Step 3
+    });
+
+    // Step 10 — delete the full order record
+    // This is the manual shipping path.
+    // The cron job handles the case where admin
+    // never clicks the ship button within 24 hours.
+    // After this line nothing remains in MongoDB
+    // for this order — PII and all.
+    await OrderDAO.deleteOrder(orderId);
+    console.log("Full order deleted after shipping email sent");
 
     return NextResponse.json({
       success: true,
