@@ -345,7 +345,7 @@ export default function PrivacyPolicyPage() {
             Watch Shop — Portfolio Demonstration Project — Not a commercial
             service
           </p>
-          <p>Designed and developed by Ricardo Mendez</p>
+          <p>Designed and developed by Ricardo Rodriguez all rights reserved</p>
         </footer>
       </div>
     </>

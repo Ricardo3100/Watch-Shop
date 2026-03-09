@@ -1,43 +1,4 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-To test connection to mongo db use this file path ; http://localhost:3000/api/Mongo-DB/test-db-connection
-
- <!-- new read me starts here -->
- # 🛍️ Watch Shop — Ecommerce with Accessible Design + Secure Admin
+# 🛍️ Watch Shop — Ecommerce with Accessible Design + Secure Admin
 
 **Intended use:**
 This repository is for personal learning, demonstrating accessible coding pipelines, and showcasing code during interviews or screen shares. While the MIT License allows others to copy and modify this code, it is not intended for commercial use without prior permission.
@@ -665,9 +626,10 @@ When the admin clicks the Ship button on the shipping page, this project:
 4. Gets a short-lived FedEx OAuth token
 5. Sends a shipment request to the FedEx sandbox API
 6. Extracts the tracking number from the response
-7. Saves the tracking number to MongoDB
+7. Saves the tracking number to the order document in MongoDB
 8. Sends a shipping notification email to the customer
-9. Deletes the full order record from MongoDB
+
+The order remains in MongoDB after this. Deletion happens via the cron job after 24 hours — this gives time to simulate refunds, disputes, and other Stripe features before everything is wiped.
 
 ---
 
@@ -890,34 +852,51 @@ A new random IV (initialisation vector) is generated for every encryption. This 
 
 ---
 
-# ⏰ Auto-Deletion Cron Job
+# ⏰ Automated Cron Job — Auto-Ship + Auto-Delete
 
 ## What This Does
 
-If the admin does not ship an order within 24 hours of it being placed, a Vercel Cron Job automatically:
+The cron job runs once a day at 9am UTC via Vercel. It does two jobs in a single pass:
 
-1. Finds all orders older than 24 hours with `fulfillmentStatus: "pending"`
-2. Decrypts the PII to get the customer email
-3. Sends a demo completion email to the customer
-4. Deletes the full order record from MongoDB
+**Job 1 — Auto-Ship (runs at 12 hour mark)**
+Finds orders older than 12 hours with no tracking number. The admin had 12 hours to manually click ship — if they didn't, the cron does it automatically. Calls FedEx sandbox, saves the tracking number, sends the shipping notification email.
 
-After this runs, nothing remains in the database for that order.
+**Job 2 — Auto-Delete (runs at 24 hour mark)**
+Finds all orders older than 24 hours. Sends the demo completion email with the tracking number. Deletes the full order record from MongoDB permanently.
+
+This means the demo runs completely hands-off after deployment. No admin interaction is required for any order ever.
 
 ---
 
-## 🔄 The Full Lifecycle
+## 🔄 The Full Automated Lifecycle
 
 ```
-Order placed
+Order placed → order confirmation email fires immediately
       ↓
-PII encrypted and saved to orders collection
-Order confirmation email fires
+9am UTC next day — cron runs
+Job 1 finds order (older than 12hrs, no tracking number)
+Auto-calls FedEx → tracking number saved → shipping email fires ✅
       ↓
-Admin ships within 24 hours?
-      ↓ YES → Shipping email fires → Full order deleted ✅
-      ↓ NO  → Cron job fires at 9am UTC → Demo completion email fires → Full order deleted ✅
+9am UTC the following day — cron runs again
+Job 2 finds order (older than 24hrs)
+Demo completion email fires with tracking number ✅
+Full order deleted from MongoDB ✅
       ↓
-After 24 hours — nothing remains in MongoDB ✅
+Nothing remains in MongoDB after 24 hours ✅
+```
+
+---
+
+## 🔄 What If Admin Clicks Ship Manually?
+
+If the admin clicks the ship button before the 12 hour mark:
+
+```
+Admin clicks ship → FedEx called → tracking number saved → shipping email fires
+Order stays in MongoDB (NOT deleted yet)
+      ↓
+Next day cron runs — Job 1 skips it (already has tracking number)
+Job 2 finds it (older than 24hrs) → demo completion email → deleted ✅
 ```
 
 ---
@@ -954,7 +933,7 @@ vercel.json                                    ← tells Vercel when to run it
 
 ## 🔐 Security
 
-The cron route is protected by a secret. Vercel sends it in the `Authorization` header automatically. Without this check, anyone who finds the URL could trigger mass deletion.
+The cron route is protected by a secret. Vercel sends it in the `Authorization` header automatically. Without this check, anyone who finds the URL could trigger mass deletion and emails.
 
 ```bash
 # Generate with:
@@ -975,9 +954,36 @@ if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
 
 ---
 
+## 🧪 How To Test Locally
+
+The cron job only runs on Vercel automatically. To test it locally use curl:
+
+```bash
+curl -X GET http://localhost:3000/api/cron/process-pending-orders \
+  -H "Authorization: Bearer YOUR_CRON_SECRET_HERE"
+```
+
+To test without waiting 12 or 24 hours, temporarily change the time windows in the cron route:
+
+```typescript
+// TEMP for testing — change back before deploying
+const twelveHourCutoff = new Date(now - 2 * 60 * 1000);  // 2 minutes
+const twentyFourHourCutoff = new Date(now - 3 * 60 * 1000); // 3 minutes
+```
+
+Restore before deploying:
+
+```typescript
+// REAL values
+const twelveHourCutoff = new Date(now - 12 * 60 * 60 * 1000);
+const twentyFourHourCutoff = new Date(now - 24 * 60 * 60 * 1000);
+```
+
+---
+
 ## 📧 The Demo Completion Email
 
-This email is sent when the cron job fires. It tells the customer:
+Sent by Job 2 when an order hits 24 hours. Tells the customer:
 
 - Their tracking number
 - That this was a demo project
@@ -987,9 +993,9 @@ This is a deliberate transparency decision — the customer receives written con
 
 ---
 
-## 🚨 What If There Is No Tracking Number?
+## 🚨 What If There Is No Tracking Number At The 24 Hour Mark?
 
-If FedEx was never called for an order (the admin never clicked ship), there is no tracking number. In that case the cron job skips the email but still deletes the order. No email is better than a broken email.
+This should not happen in normal flow because Job 1 runs at 12 hours and generates a tracking number. However if FedEx fails during auto-ship, Job 2 will still delete the order but skip the demo completion email. No email is better than a broken email with no tracking number.
 
 ---
 
@@ -1043,9 +1049,9 @@ If you have lost all memory of this project but still know how to code, follow t
 - [ ] Create `app/api/admin/fedex-shipment/route.ts` — verify admin, decrypt PII, validate country, get token, build payload, call `/ship/v1/shipments`
 - [ ] Add `labelSpecification` block to payload — required or FedEx returns an error
 - [ ] Extract tracking number from `output.transactionShipments[0].masterTrackingNumber`
-- [ ] Call `OrderDAO.updateShipment()` to save tracking number
+- [ ] Call `OrderDAO.updateShipment()` to save tracking number as top level field (`trackingNumber` not `shipping.tracking_number`)
 - [ ] Send shipping notification email
-- [ ] Call `OrderDAO.deleteOrder()` after email fires
+- [ ] Do NOT delete the order here — deletion is handled by the cron job after 24 hours
 
 ## Brevo Email
 
@@ -1054,17 +1060,21 @@ If you have lost all memory of this project but still know how to code, follow t
 - [ ] Add `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `BREVO_FROM_NAME` to env
 - [ ] Create `lib/mailer.ts` — init `TransactionalEmailsApi`, set API key
 - [ ] Add `sendOrderConfirmation()` — called from Stripe webhook
-- [ ] Add `sendShippingNotification()` — called from FedEx shipment route
-- [ ] Add `sendDemoCompletionEmail()` — called from cron job
+- [ ] Add `sendShippingNotification()` — called from FedEx shipment route and cron auto-ship job
+- [ ] Add `sendDemoCompletionEmail()` — called from cron auto-delete job
 
-## Auto-Deletion Cron Job
+## Auto-Ship + Auto-Delete Cron Job
 
 - [ ] Generate cron secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - [ ] Add `CRON_SECRET` to `.env.local`
 - [ ] Create `vercel.json` at root with `crons` schedule (`0 9 * * *` for daily at 9am UTC)
-- [ ] Create `app/api/cron/process-pending-orders/route.ts` — verify `CRON_SECRET`, find expired orders, decrypt PII, send demo completion email, delete full order
-- [ ] Add `getExpiredPendingOrders(cutoff: Date)` to `OrderDAO` — finds pending orders older than cutoff
+- [ ] Create `app/api/cron/process-pending-orders/route.ts` with two jobs:
+  - Job 1 — auto-ship: finds orders older than 12hrs with no tracking number, calls FedEx, saves tracking number, sends shipping email
+  - Job 2 — auto-delete: finds orders older than 24hrs, sends demo completion email, deletes full order
+- [ ] Add `getOrdersNeedingAutoShip(cutoff: Date)` to `OrderDAO` — finds orders with `fulfillmentStatus: "pending"`, `createdAt < cutoff`, and `trackingNumber` not set
+- [ ] Add `getExpiredPendingOrders(cutoff: Date)` to `OrderDAO` — finds all orders where `createdAt < cutoff` (no status filter — catches both shipped and pending)
 - [ ] Add `deleteOrder(orderId)` to `OrderDAO` — deletes full order document
+- [ ] Add `updateShipment(orderId, trackingNumber)` to `OrderDAO` — saves `trackingNumber` at top level, sets `fulfillmentStatus: "shipped"`
 
 ---
 

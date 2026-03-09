@@ -14,13 +14,6 @@ export default async function ShopPage({
   searchParams: Promise<{ category?: string }>;
 }) {
   const categories = await ProductDAO.getCategories();
-const BackLink = (
-    <Link href="/products" className="flex items-center gap-2 mb-8">
-      <AiOutlineArrowLeft />
-      Back to Products
-    </Link>
-  );
-
 
   const { category: requestedCategory = "" } = await searchParams;
 
@@ -32,15 +25,22 @@ const BackLink = (
     ? await ProductDAO.getByCategory(category)
     : await ProductDAO.getAll();
 
+   
+
+// Serialize MongoDB objects to plain objects
+const plainProducts = products.map((p: any) => ({
+  _id: p._id.toString(),
+  name: p.name,
+  price: p.price,
+  image: p.image,
+  stock: p.stock,
+  description: p.description ?? null,
+  category: p.category ?? null,
+}));
+
   return (
     <>
       <h1 className="text-3xl font-bold text-center">All Products</h1>
-      <div className="flex justify-between items-center mb-8">
-        <Link href="/" className="flex items-center gap-2">
-          <AiOutlineArrowLeft />
-          Back to Home
-        </Link>
-      </div>
       <Suspense
         fallback={<div className="text-center mb-6">Loading filter...</div>}
       >
@@ -52,11 +52,23 @@ const BackLink = (
           No products found in this category.
         </p>
       ) : (
-        <div className="grid text-center grid-cols-1 md:grid-cols-3 gap-6 p-6">
-          {products.map((product: any) => (
-            <ProductCard key={product._id.toString()} product={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid text-center grid-cols-1 md:grid-cols-3 gap-6 p-6">
+            {plainProducts.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+          </div>
+          <div className="mt-6">
+            <a href="/products" className="text-sm underline">
+              View all →
+            </a>
+          </div>
+          <div className="mt-6">
+            <a href={`/category/${plainProducts[0]?.category}`} className="text-sm underline">
+              View all →
+            </a>
+          </div>
+        </>
       )}
     </>
   );

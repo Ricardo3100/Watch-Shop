@@ -53,7 +53,6 @@ export async function POST(req: Request) {
     }
 
     // Step 2 — fetch the order from MongoDB
-    // Step 2 — fetch the order from MongoDB
     const order = await OrderDAO.findById(orderId);
 
     if (!order) {
@@ -196,11 +195,23 @@ export async function POST(req: Request) {
         body: JSON.stringify(shipmentPayload),
       },
     );
+
+    // ✅ MISSING — parse the response before using it
+    const fedexData = await fedexRes.json();
+
+    console.log("FedEx response:", JSON.stringify(fedexData, null, 2));
+
+    if (!fedexRes.ok) {
+      console.error("FedEx shipment failed:", fedexData);
+      return NextResponse.json(
+        { error: "FedEx shipment creation failed", details: fedexData },
+        { status: 500 },
+      );
+    }
+
     // Step 7 — extract tracking number
-    // Declared only once — the duplicate was causing the 500 error
     const trackingNumber =
       fedexData?.output?.transactionShipments?.[0]?.masterTrackingNumber;
-
     console.log("Tracking number extracted:", trackingNumber);
 
     if (!trackingNumber) {
@@ -228,23 +239,17 @@ export async function POST(req: Request) {
     // Step 9 — send shipping notification email to customer
     // We use the decrypted values from Step 3 —
     // they are still in memory at this point.
-    // We do NOT read from the database again because
-    // the PII is about to be deleted.
+//  The order remains in MongoDB after this.
+    // The cron job handles deletion after 24 hours —
+    // this gives time to simulate refunds, disputes, etc.
+    
     await sendShippingNotification({
       to: customerEmail, // ✅ decrypted in Step 3
       trackingNumber,
       shippingName, // ✅ decrypted in Step 3
     });
 
-    // Step 10 — delete the full order record
-    // This is the manual shipping path.
-    // The cron job handles the case where admin
-    // never clicks the ship button within 24 hours.
-    // After this line nothing remains in MongoDB
-    // for this order — PII and all.
-    await OrderDAO.deleteOrder(orderId);
-    console.log("Full order deleted after shipping email sent");
-
+    
     return NextResponse.json({
       success: true,
       trackingNumber,

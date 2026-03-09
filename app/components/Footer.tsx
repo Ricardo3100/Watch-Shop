@@ -8,8 +8,8 @@ const Footer = () => {
       <div className="flex flex-wrap justify-center gap-6 py-4 text-lg font-bold">
         <Link href="/privacy-policy">Privacy Policy</Link>
         <Link href="/">VPAT</Link>
-        <Link href="/">Accessibility</Link>
-        <Link href="/">Terms</Link>
+        <Link href="/accessibility-statement">Accessibility Statement</Link>
+        <Link href="/terms-of-service">Terms of Service</Link>
         <Link href="/">Contact</Link>
       </div>
 
@@ -26,12 +26,14 @@ const Footer = () => {
       </div>
 
       <div className="flex justify-center py-4">
-        <img
-          height={50}
-          width={150}
-          src="/assets/images/envisioningsolutionslogo.png"
-          alt="En-Visioning Solutions, redirects to my personal site"
-        />
+        <Link href="https://www.en-visioningsolutions.com">
+          <img
+            height={50}
+            width={150}
+            src="/assets/images/envisioningsolutionslogo.png"
+            alt="En-Visioning Solutions, redirects to my personal site"
+          />
+        </Link>
       </div>
     </footer>
   );

@@ -38,8 +38,8 @@ export default class OrderDAO {
       { _id: new ObjectId(orderId) },
       {
         $set: {
-          "shipping.tracking_number": trackingNumber,
-          fulfillmentStatus: "shipped", // ✅ was: status: "shipped"
+          trackingNumber: trackingNumber, // ✅ top level field now
+          fulfillmentStatus: "shipped",
           shippedAt: new Date(),
         },
       },
@@ -73,17 +73,32 @@ export default class OrderDAO {
     await collection.deleteOne({ _id: new ObjectId(orderId) });
     console.log(`Full order deleted: ${orderId}`);
   }
-  // Find all orders that:
-  // - Were created more than 24 hours ago
+  // Find orders that need to be auto-deleted by the cron job.
+  // These are orders that:
+  // - Are older than 24 hours (admin had time to ship manually)
   // - Still have fulfillmentStatus: "pending"
-  // - Admin never manually shipped them
-  // Used by the cron job to auto-process stale orders.
+  // We do NOT filter by trackingNumber here because
+  // some orders might have been shipped manually before FedEx integration
   static async getExpiredPendingOrders(cutoff: Date) {
+    const collection = await this.collection();
+    return await collection
+      .find({
+        createdAt: { $lt: cutoff }, // ✅ removed fulfillmentStatus filter
+      })
+      .toArray();
+  }
+  // Find orders that need to be auto-shipped by the cron job.
+  // These are orders that:
+  // - Are older than 12 hours (admin had time to ship manually)
+  // - Still have fulfillmentStatus: "pending"
+  // - Have no tracking number yet (FedEx was never called)
+  static async getOrdersNeedingAutoShip(cutoff: Date) {
     const collection = await this.collection();
     return await collection
       .find({
         fulfillmentStatus: "pending",
         createdAt: { $lt: cutoff },
+        trackingNumber: { $exists: false },
       })
       .toArray();
   }

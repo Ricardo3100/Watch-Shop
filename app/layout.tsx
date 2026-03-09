@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={atkinson.className}>
+      <body className={atkinson.className} suppressHydrationWarning>
         <StateContext>
           <Navbar />
           {children}

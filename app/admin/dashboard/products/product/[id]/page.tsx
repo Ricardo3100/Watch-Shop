@@ -1,8 +1,8 @@
-import ProductDAO from "../../api/Mongo-DB/dataaccessobject/productdao";
+import ProductDAO from "../../../../../api/Mongo-DB/dataaccessobject/productdao
 import Link from "next/link";
 import { AiOutlineArrowLeft } from "react-icons/ai";
 import Image from "next/image";
-import AddToCartButton from "../../components/AddToCartButton";
+import AddToCartButton from "../../components/";
 
 export default async function ProductPage({
   params,

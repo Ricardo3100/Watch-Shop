@@ -175,3 +175,89 @@ const sendSmtpEmail = new SendSmtpEmail();
   await apiInstance.sendTransacEmail(sendSmtpEmail);
   console.log(`Shipping notification sent to ${to}`);
 }
+
+// ----------------------------
+// 📧 EMAIL 3 — DEMO COMPLETION
+// ----------------------------
+// Sent automatically by the cron job when:
+// - 24 hours have passed since the order was placed
+// - The admin never manually clicked the ship button
+//
+// Tells the customer:
+// - Their demo transaction is complete
+// - Their tracking number
+// - That ALL their PII has been permanently deleted
+export async function sendDemoCompletionEmail({
+  to,
+  trackingNumber,
+  shippingName,
+}: {
+  to: string;
+  trackingNumber: string;
+  shippingName: string;
+}) {
+  const trackingUrl = `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`;
+
+  const sendSmtpEmail = new SendSmtpEmail();
+
+  sendSmtpEmail.sender = { name: FROM_NAME, email: FROM_EMAIL };
+  sendSmtpEmail.to = [{ email: to, name: shippingName }];
+  sendSmtpEmail.subject = "Your Watch Shop demo order — transaction complete";
+  sendSmtpEmail.htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+
+      <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">
+        Your order is on its way 📦
+      </h1>
+
+      <p style="color: #666; margin-bottom: 32px;">
+        Hi ${shippingName}, your En-Visioning Solutions Watch Shop demo order has been processed.
+        You can track your package using the link below.
+      </p>
+
+      <div style="background: #f9f9f9; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; color: #999; text-transform: uppercase; letter-spacing: 1px;">
+          Tracking Number
+        </p>
+        <p style="margin: 0 0 16px 0; font-size: 24px; font-weight: bold; font-family: monospace;">
+          ${trackingNumber}
+        </p>
+        
+            <a 
+          href="${trackingUrl}"
+          style="display: inline-block; background: black; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px;"
+        >
+          Track your order on FedEx
+        </a>
+      </div>
+
+      <div style="background: #f0f7ff; border: 1px solid #cce0ff; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #0055cc; text-transform: uppercase; letter-spacing: 1px;">
+         Demo Transparency Notice
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #333;">
+          This is a portfolio demonstration project.
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #333;">
+          As part of our privacy commitment, this email marks the end 
+          of your demo transaction. All personal information associated 
+          with this order — including your name, email address, and 
+          shipping address — has now been permanently deleted from our 
+          system.
+        </p>
+        <p style="margin: 0; font-size: 14px; color: #333; font-weight: bold;">
+          We do not store your data. We do not sell your data.
+          This notice confirms that deletion is complete.
+        </p>
+      </div>
+
+      <p style="color: #999; font-size: 13px;">
+        Thank you for helping test this project.
+      </p>
+
+    </div>
+  `;
+
+  await apiInstance.sendTransacEmail(sendSmtpEmail);
+  console.log(`Demo completion email sent to ${to}`);
+}
