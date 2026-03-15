@@ -1,5 +1,7 @@
 import Stripe from "stripe";
 import { headers } from "next/headers";
+import { randomUUID } from "crypto"
+
 import { encrypt } from "../../lib/encryption";
 import { NextResponse } from "next/server";
 import clientPromise from "../Mongo-DB/mongodb";
@@ -152,6 +154,9 @@ try {
     // visible to sendOrderConfirmation after it commits
     let total = 0;
     const orderItems: any[] = [];
+    let refundToken = "";       
+let orderId = "";            
+
 
     await session.withTransaction(async () => {
       const productIds = cart.map((item: any) => item._id);
@@ -181,15 +186,21 @@ try {
           quantity: item.quantity,
         });
       }
-
-   await orderDAO.createOrder(
+      // initalize the return token here
+      const generatedToken = randomUUID(); 
+      const result = await orderDAO.createOrder(
         {
           stripePaymentIntentId: paymentIntent.id,
           items: orderItems,
           total,
           paymentStatus: "paid",
           fulfillmentStatus: "pending",
+          // the unique token for the refund is added to the db here
+          refundToken: generatedToken, // ← use it here
+
           createdAt: new Date(),
+
+          refundStatus: "none",
 
           // ✅ PII fields encrypted before saving
           // Even if the database is breached these
@@ -200,6 +211,10 @@ try {
         },
         session,
       );
+      orderId = result.insertedId.toString();
+    //  pass the generated token to the outer scope for email sending
+      // this allows the link in the email to work 
+    refundToken = generatedToken;
     });
 
     // ✅ total and orderItems are now in scope here
@@ -208,9 +223,10 @@ try {
       orderTotal: total,
       items: orderItems,
       shippingName: shipping?.name || "Customer",
+      orderId, // ← pass in
+      refundToken,
     });
 
-    console.log("Order created successfully (transaction committed)");
 
   } catch (err) {
     console.error("Transaction failed:", err);

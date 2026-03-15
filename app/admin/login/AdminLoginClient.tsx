@@ -46,7 +46,7 @@ export default function AdminLoginClient() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
       <h1 className="text-2xl font-bold">Admin Login</h1>
 
       <button

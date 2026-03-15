@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { verifyRegistrationResponse } from "@simplewebauthn/server";
 import { NextResponse } from "next/server";
 import { getAdminCollection } from "../../../lib/admincollections";
+import { lookupDevice, formatAaguid } from "../../../lib/aaguid";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
 
   try {
     const verification = await verifyRegistrationResponse({
-      response: body, // ✅ pass body directly, v13 handles decoding
+      response: body,
       expectedChallenge: admin.currentChallenge,
       expectedOrigin: process.env.WEBAUTHN_ORIGIN!,
       expectedRPID: process.env.WEBAUTHN_RP_ID!,
@@ -45,31 +46,35 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ v13 shape — credential is nested under registrationInfo.credential
-    const { credential } = registrationInfo;
+    const { credential, aaguid } = registrationInfo;
+    const transports = body.response.transports || [];
+
+    // Format AAGUID bytes into UUID string and look up device name
+    const aaguidString = formatAaguid(aaguid);
+    const device = lookupDevice(aaguidString, transports);
 
     await admins.updateOne(
       { _id: admin._id },
       {
         $push: {
           credentials: {
-            credentialID: credential.id, // ✅ v13: credential.id
-            publicKey: credential.publicKey, // ✅ v13: credential.publicKey
-            counter: credential.counter, // ✅ v13: credential.counter
-            transports: body.response.transports || [],
+            credentialID: credential.id,
+            publicKey: credential.publicKey,
+            counter: credential.counter,
+            transports,
+            aaguid: aaguidString,
+            deviceName: device.name,
+            deviceEmoji: device.emoji,
+            createdAt: new Date(),
           },
         },
         $unset: { currentChallenge: "" },
       },
     );
 
-    return NextResponse.json({ verified: true }); // ✅ matches what your client checks
+    return NextResponse.json({ verified: true });
   } catch (err) {
     console.error("Registration verify error:", err);
-    if (err instanceof Error) {
-      console.error("Message:", err.message);
-      console.error("Stack:", err.stack);
-    }
     return NextResponse.json(
       { error: "Registration verification error" },
       { status: 500 },

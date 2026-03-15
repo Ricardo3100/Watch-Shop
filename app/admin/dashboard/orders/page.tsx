@@ -1,15 +1,30 @@
 import { verifyAdminPage } from "../../../lib/verifyadmin";
 import OrderDAO from "../../../api/Mongo-DB/dataaccessobject/orderdao";
+import { safeDecrypt } from "../../../lib/encryption";
+import OrdersClient from "./OrdersClient";
 import Link from "next/link";
 import { AiOutlineArrowLeft, AiOutlineArrowRight } from "react-icons/ai";
-// import safe decrypt function to decrypt PII for display in admin orders page
-import { safeDecrypt } from "../../../lib/encryption"; // ✅ add this
 
 export default async function AdminOrdersPage() {
-  // Verify admin access to the orders page
   await verifyAdminPage();
 
-  const orders = await OrderDAO.getCompletedOrders();
+  const rawOrders = await OrderDAO.getCompletedOrders();
+
+  // Decrypt PII here in the server component
+  const orders = rawOrders.map((order: any) => ({
+    id: order._id.toString(),
+    customerName: safeDecrypt(order.shippingName) || "—",
+    customerEmail: safeDecrypt(order.email) || "—",
+    total: order.total,
+    paymentStatus: order.paymentStatus,
+    fulfillmentStatus: order.fulfillmentStatus || "unfulfilled",
+    createdAt: order.createdAt
+      ? new Date(order.createdAt).toLocaleDateString()
+      : "—",
+    refundStatus: order.refundStatus || "none",
+    refundReason: order.refundReason || null,
+    refundNote: order.refundNote || null,
+  }));
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
@@ -26,95 +41,7 @@ export default async function AdminOrdersPage() {
 
       <h1 className="text-3xl font-bold mb-8">Orders</h1>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Order ID
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Customer
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Email
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Total 
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Payment Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Date Of Order
-              </th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-gray-200">
-            {orders.map((order: any) => {
-              // ----------------------------
-              // 🔓 DECRYPT PII FOR DISPLAY
-              // ----------------------------
-              // These fields were encrypted when the order
-              // was created in the Stripe webhook.
-              // We decrypt here only for display —
-              // the decrypted values exist in memory only
-              // for the duration of this page render.
-              const customerName = safeDecrypt(order.shippingName) || "—";
-              const customerEmail = safeDecrypt(order.email) || "—";
-
-              return (
-                <tr key={order._id.toString()} className="hover:bg-gray-50">
-                  {/* Order ID */}
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {order._id.toString()}
-                  </td>
-
-                  {/* Customer name — decrypted */}
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {customerName}
-                  </td>
-
-                  {/* Customer email — decrypted */}
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {customerEmail}
-                  </td>
-
-                  {/* Total */}
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    ${order.total}
-                  </td>
-
-                  {/* Payment Status */}
-                  <td className="px-6 py-4 text-sm">
-                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                      {order.paymentStatus}
-                    </span>
-                  </td>
-
-                  {/* Fulfillment Status */}
-                  <td className="px-6 py-4 text-sm">
-                    <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                      {order.fulfillmentStatus || "unfulfilled"}
-                    </span>
-                  </td>
-
-                  {/* Date */}
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {order.createdAt
-                      ? new Date(order.createdAt).toLocaleDateString()
-                      : "—"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <OrdersClient orders={orders} />
     </div>
   );
 }

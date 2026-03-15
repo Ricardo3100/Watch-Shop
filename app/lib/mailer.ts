@@ -34,7 +34,8 @@ apiInstance.setApiKey(
   TransactionalEmailsApiApiKeys.apiKey,
   process.env.BREVO_API_KEY!,
 );
-
+//  This is the email address and name that will appear
+//  in the "From" field of the email
 const FROM_EMAIL = process.env.BREVO_FROM_EMAIL!;
 const FROM_NAME = process.env.BREVO_FROM_NAME || "Watch Shop";
 
@@ -44,17 +45,25 @@ const FROM_NAME = process.env.BREVO_FROM_NAME || "Watch Shop";
 // Sent to the customer immediately after payment succeeds.
 // Called from the Stripe webhook after createOrder().
 export async function sendOrderConfirmation({
+  // The following is the information we need to include in the email.
+
   to,
   orderTotal,
   items,
   shippingName,
+  orderId,
+  refundToken,
 }: {
   to: string;
   orderTotal: number;
   items: { title: string; quantity: number; price: number }[];
   shippingName: string;
+  orderId: string;
+  refundToken: string;
 }) {
-  // Build the items list as HTML rows
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  const refundUrl = `${baseUrl}/refund-request?token=${refundToken}&order=${orderId}`;
+
   const itemRows = items
     .map(
       (item) => `
@@ -69,15 +78,24 @@ export async function sendOrderConfirmation({
     `,
     )
     .join("");
-//  send email here
-const sendSmtpEmail = new SendSmtpEmail();
+
+  const sendSmtpEmail = new SendSmtpEmail();
 
   sendSmtpEmail.sender = { name: FROM_NAME, email: FROM_EMAIL };
   sendSmtpEmail.to = [{ email: to, name: shippingName }];
   sendSmtpEmail.subject = "Your Watch Shop order has been received";
   sendSmtpEmail.htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-      
+
+      <!-- Logo -->
+      <div style="margin-bottom: 32px;">
+        <img 
+          src="${baseUrl}/envisioningsolutionslogo.png" 
+          alt="Watch Shop" 
+          style="height: 48px; width: auto;"
+        />
+      </div>
+
       <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">
         Your order has been received ✅
       </h1>
@@ -104,8 +122,14 @@ const sendSmtpEmail = new SendSmtpEmail();
         </tr>
       </table>
 
-      <p style="color: #999; font-size: 13px;">
+      <p style="color: #999; font-size: 13px; margin-bottom: 8px;">
         If you have any questions about your order please reply to this email.
+      </p>
+
+      <!-- Refund request link -->
+      <p style="color: #999; font-size: 13px;">
+        Not happy with your order?
+        <a href="${refundUrl}" style="color: #666;">Request a refund</a>
       </p>
 
     </div>
@@ -261,3 +285,71 @@ export async function sendDemoCompletionEmail({
   await apiInstance.sendTransacEmail(sendSmtpEmail);
   console.log(`Demo completion email sent to ${to}`);
 }
+
+export async function sendRefundConfirmationEmail({
+  to,
+  shippingName,
+  orderTotal,
+}: {
+  to: string;
+  shippingName: string;
+  orderTotal: number;
+}) {
+// This email is sent to the customer when their refund request is approved by the admin.
+  const sendSmtpEmail = new SendSmtpEmail();
+
+  sendSmtpEmail.sender = { name: FROM_NAME, email: FROM_EMAIL };
+  sendSmtpEmail.to = [{ email: to, name: shippingName }];
+  sendSmtpEmail.subject = "Your Watch Shop demo refund request — transaction complete";
+  sendSmtpEmail.htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+
+      <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">
+        Your refund has been processed 💸
+      </h1>
+
+      <p style="color: #666; margin-bottom: 32px;">
+        Hi ${shippingName}, your En-Visioning Solutions Watch Shop refund request order has been processed.
+      </p>
+
+      <div style="background: #f9f9f9; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+     
+      </div>
+
+      <div style="background: #f9f9f9; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+  <p style="margin: 0; font-size: 15px;">
+    Amount refunded: <strong>$${orderTotal.toFixed(2)}</strong>
+  </p>
+</div>
+
+      <div style="background: #f0f7ff; border: 1px solid #cce0ff; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #0055cc; text-transform: uppercase; letter-spacing: 1px;">
+         Demo Transparency Notice
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #333;">
+          This is a portfolio demonstration project.
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #333;">
+          As part of our privacy commitment, this email marks the end 
+          of your demo transaction. All personal information associated 
+          with this order — including your name, email address, and 
+          shipping address — has now been permanently deleted from our 
+          system.
+        </p>
+        <p style="margin: 0; font-size: 14px; color: #333; font-weight: bold;">
+          We do not store your data. We do not sell your data.
+          This notice confirms that deletion is complete.
+        </p>
+      </div>
+
+      <p style="color: #999; font-size: 13px;">
+        Thank you for helping test this project.
+      </p>
+
+    </div>
+  `;
+
+  await apiInstance.sendTransacEmail(sendSmtpEmail);
+  console.log(`Demo completion email sent to ${to}`);
+}
+

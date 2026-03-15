@@ -1,17 +1,21 @@
 import { generateRegistrationOptions } from "@simplewebauthn/server";
 import { NextResponse } from "next/server";
 import { getAdminCollection } from "../../../lib/admincollections";
+import { verifyAdminApi } from "../../../lib/verifyadmin";
 
 export async function POST(req: Request) {
-  // ✅ POST not GET
-  const { name } = await req.json(); // ✅ now you can read the name
+  // 🔐 Must be logged in to register a new passkey
+  const auth = await verifyAdminApi();
+  if (auth instanceof NextResponse) return auth;
+
+  const { name } = await req.json();
 
   const admins = await getAdminCollection();
   const existingAdmin = await admins.findOne({});
 
-  if (existingAdmin) {
+  if (!existingAdmin) {
     return NextResponse.json(
-      { error: "Admin already registered" },
+      { error: "No admin account found" },
       { status: 400 },
     );
   }
@@ -20,16 +24,18 @@ export async function POST(req: Request) {
     rpName: process.env.WEBAUTHN_RP_NAME!,
     rpID: process.env.WEBAUTHN_RP_ID!,
     userID: new TextEncoder().encode("admin-id"),
-    userName: name || "admin", // ✅ use the name from the form
+    userName: name || "admin",
+    excludeCredentials:
+      existingAdmin.credentials?.map((cred: any) => ({
+        id: cred.credentialID,
+        type: "public-key",
+      })) || [],
   });
 
-  await admins.insertOne({
-    email: "admin@local",
-    name: name || "admin", // ✅ store the name too if you want
-    credentials: [],
-    currentChallenge: options.challenge,
-    createdAt: new Date(),
-  });
+  await admins.updateOne(
+    { _id: existingAdmin._id },
+    { $set: { currentChallenge: options.challenge } },
+  );
 
   return NextResponse.json(options);
 }

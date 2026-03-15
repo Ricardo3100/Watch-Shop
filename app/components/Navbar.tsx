@@ -61,108 +61,104 @@ const Navbar = () => {
 
 
   return (
-    <nav className="px-4 md:px-12 py-4 md:py-6 bg-white text-black flex items-center justify-between relative">
-      {/* Logo */}
-      <Link href="/" className="hidden md:inline-block font-bold text-lg">
-        Zwatches
-      </Link>
-      <Link href="/" className="hidden md:inline-block font-bold text-lg">
-        Home
-      </Link>
+  <nav className="px-4 md:px-12 py-4 bg-white text-black flex items-center gap-4 relative">
+    
+    {/* Logo */}
+    <Link href="/" className="font-bold text-lg shrink-0">
+      Watch Shop
+    </Link>
 
-      {/* Search */}
-      <div ref={searchRef} className="relative flex-1 max-w-md">
-        <form
-          onSubmit={handleSearchSubmit}
-          className="flex items-center gap-2 border px-3 py-1 rounded-md"
+    {/* Search — takes up remaining space */}
+    <div ref={searchRef} className="relative flex-1">
+      <form
+        onSubmit={handleSearchSubmit}
+        className="flex items-center gap-2 border px-3 py-1 rounded-md"
+      >
+        <svg
+          className="w-4 h-4 text-black/70 shrink-0"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 20 20"
         >
-          <svg
-            className="w-4 h-4 text-black/70"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 20 20"
-          >
-            <path
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"
-            />
-          </svg>
-
-          <input
-            type="text"
-            placeholder="Search"
-            className="outline-none flex-1"
-            value={searchTerm}
-            onChange={handleInputChange}
+          <path
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"
           />
-
-          <button
-            type="submit"
-            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Search
-          </button>
-        </form>
-
-        {/* Search dropdown */}
-        {searchCompleted && (
-          <div className="absolute top-full left-0 right-0 bg-white border mt-1 max-h-60 overflow-y-auto z-50">
-            {isSearching ? (
-              <div className="p-3 text-gray-500">Searching...</div>
-            ) : searchResults.length > 0 ? (
-              searchResults.map((item) => (
-                <Link key={item._id} href={`/product/${item._id}`}>
-                  <div className="p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2">
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-10 h-10 object-cover rounded"
-                      />
-                    )}
-                    <span>{item.name}</span>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className="p-3 text-gray-500">
-                No results found for{" "}
-                <span className="font-semibold">"{searchTerm}"</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Right Buttons */}
-      <div className="flex items-center gap-4 ml-4">
-        <Link href="/add-product">
-          <button className="swiss-btn bg-[#212529] hover:bg-[#0047AB] text-white px-4 py-2 text-sm">
-            Add Product
-          </button>
-        </Link>
-
+        </svg>
+        <input
+          type="text"
+          placeholder="Search"
+          className="outline-none flex-1 min-w-0"
+          value={searchTerm}
+          onChange={handleInputChange}
+        />
         <button
-          type="button"
-          className="cart-icon relative"
-          onClick={() => setShowCart(true)}
+          type="submit"
+          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0 "
         >
-          <AiOutlineShopping size={24} />
-          {totalQuantities > 0 && (
-            <span className="cart-item-qty absolute -top-2 -right-2 bg-red-600 text-white rounded-full px-2 text-xs">
-              {totalQuantities}
-            </span>
-          )}
+          Search
         </button>
-      </div>
+      </form>
 
-      {/* Modal Cart */}
-      {showCart && <Cart />}
-    </nav>
-  );
+      {/* Search dropdown */}
+      {searchCompleted && (
+        <div className="absolute top-full left-0 right-0 bg-white border mt-1 max-h-60 overflow-y-auto z-50">
+          {isSearching ? (
+            <div className="p-3 text-gray-500">Searching...</div>
+          ) : searchResults.length > 0 ? (
+            searchResults.map((item) => (
+              <Link key={item._id} href={`/product/${item._id}`}>
+                <div className="p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2">
+                  {item.image && (
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-10 h-10 object-cover rounded"
+                    />
+                  )}
+                  <span>{item.name}</span>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="p-3 text-gray-500">
+              No results found for{" "}
+              <span className="font-semibold">"{searchTerm}"</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    {/* Right side — always visible */}
+    <div className="flex items-center gap-3 shrink-0">
+      <button
+        type="button"
+        className="relative"
+        onClick={() => setShowCart(true)}
+        aria-label="Open cart"
+      >
+        <AiOutlineShopping size={24} />
+        {totalQuantities > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full px-1.5 text-xs leading-tight">
+            {totalQuantities}
+          </span>
+        )}
+      </button>
+
+      {/* Discreet admin link */}
+      <Link href="/admin/login" className="text-xs text-gray-400 hover:text-gray-600">
+        Admin
+      </Link>
+    </div>
+
+    {/* Modal Cart */}
+    {showCart && <Cart />}
+  </nav>
+);
 };
 
 export default Navbar;

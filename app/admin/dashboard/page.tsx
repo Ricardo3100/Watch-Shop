@@ -6,6 +6,7 @@ export default async function AdminDashboard() {
   const admin = await verifyAdminPage();
 
   return (
+    // to meet aaa color contrast go with white
     <div className="min-h-screen bg-gray-800 p-10">
       <div className="flex items-center justify-between mb-8 border-b border-gray-700 pb-4">
         <div>
@@ -47,6 +48,14 @@ export default async function AdminDashboard() {
             <h2 className="text-xl font-semibold">Shipping</h2>
             <p className="text-gray-600 mt-2">
               Prepare shipments and tracking.
+            </p>
+          </div>
+        </Link>
+        <Link href="/admin/dashboard/passkeys">
+          <div className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition cursor-pointer">
+            <h2 className="text-xl font-semibold">Add Passkey</h2>
+            <p className="text-gray-600 mt-2">
+              Register an additional passkey for this device.
             </p>
           </div>
         </Link>

@@ -24,6 +24,7 @@ That one change helps users with cognitive impairments understand exactly what i
 - Stripe payments with webhooks
 - Passwordless admin login using passkeys (WebAuthn)
 - MongoDB database
+- Refund request flow (customer-facing + admin approval)
 - Accessible UI design throughout
 
 ---
@@ -66,6 +67,9 @@ ENCRYPTION_KEY=your_64_character_hex_string_here
 
 # Cron Job Security
 CRON_SECRET=your_64_character_hex_string_here
+
+# Base URL (used for email links and logo)
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
 ```
 
 > ⚠️ Never commit `.env.local` to Git. Add it to `.gitignore`.
@@ -710,13 +714,79 @@ Sandbox tracking numbers are real-looking but static. They will appear on `fedex
 
 ## What This Does
 
-This project sends three transactional emails via the Brevo API:
+This project sends transactional emails via the Brevo API. A transactional email is a one-to-one email triggered by a specific event — not a newsletter or bulk send.
 
-| Email | Triggered by | Recipient |
-|---|---|---|
-| Order confirmation | Stripe webhook after payment | Customer |
-| Shipping notification | Admin clicks ship button | Customer |
-| Demo completion | Cron job after 24 hours | Customer |
+| Email | Triggered by | Caller | Recipient |
+|---|---|---|---|
+| Order confirmation | Stripe webhook after payment | `api/stripe-webhook/route.ts` | Customer |
+| Shipping notification | Admin clicks ship button | `api/admin/fedex-shipment/route.ts` | Customer |
+| Refund confirmation | Admin clicks approve | `api/admin/refund/[orderId]/route.ts` | Customer |
+| Demo completion | Cron job after 24 hours | `api/cron/process-pending-orders/route.ts` | Customer |
+
+---
+
+## 🧠 The Mental Model — What Actually Triggers An Email
+
+This is the most important thing to understand before building anything.
+
+You are used to tying emails to button clicks in React. In a server-side app, the same idea applies — but the "button" is different depending on who triggers the event. The email never fires from the browser directly. The browser tells the server what happened. The server sends the email.
+
+**The flow always looks like this:**
+
+```
+Something happens → Server-side code runs → mailer function called → Brevo sends email
+```
+
+The mailer functions in `lib/mailer.ts` are just templates. They never fire themselves. Something server-side always has to call them at the right moment.
+
+---
+
+## 🔁 Trigger Types
+
+### Ecommerce (Stripe-driven)
+
+When a payment succeeds, Stripe sends a POST request to your webhook route. The webhook handler calls the mailer after saving the order. The browser is not involved at all.
+
+```
+Customer pays on Stripe
+→ Stripe fires POST to /api/stripe-webhook
+→ webhook saves order to MongoDB
+→ webhook calls sendOrderConfirmation()
+→ Brevo sends the email
+```
+
+The key insight: you never call the email from the browser. The browser only talks to Stripe. Stripe talks to your server. Your server sends the email.
+
+### Admin action (button-driven)
+
+When an admin clicks a button in the dashboard, the browser calls your API route. The API route does the work and calls the mailer.
+
+```
+Admin clicks "Approve Refund"
+→ browser calls POST /api/admin/refund/[orderId]
+→ API route calls Stripe to process the refund
+→ API route calls sendRefundConfirmationEmail()
+→ Brevo sends the email to the customer
+```
+
+```
+Admin clicks "Ship"
+→ browser calls POST /api/admin/fedex-shipment
+→ API route calls FedEx, saves tracking number
+→ API route calls sendShippingNotification()
+→ Brevo sends the email to the customer
+```
+
+### Scheduled (cron-driven)
+
+When a cron job runs on a schedule, it calls the mailer directly inside the cron route.
+
+```
+Vercel cron fires at 9am UTC
+→ cron route finds orders older than 24 hours
+→ for each order, calls sendDemoCompletionEmail()
+→ Brevo sends the email to each customer
+```
 
 ---
 
@@ -725,15 +795,18 @@ This project sends three transactional emails via the Brevo API:
 1. Create a free account at [brevo.com](https://brevo.com)
 2. Go to **SMTP & API → API Keys**
 3. Create a new API key
-4. Add to `.env.local`:
+4. Go to **Senders & IP → Senders** and verify your sender email address
+5. Add to `.env.local`:
 
 ```bash
 BREVO_API_KEY=your_api_key
-BREVO_FROM_EMAIL=your_verified_sender_email
+BREVO_FROM_EMAIL=your_verified_sender@example.com
 BREVO_FROM_NAME=Watch Shop
 ```
 
-> The `BREVO_FROM_EMAIL` must be a verified sender in your Brevo account.
+> ⚠️ The `BREVO_FROM_EMAIL` must be a verified sender. You cannot send from an unverified address — Brevo will reject the request silently.
+
+> ⚠️ Do not use Zoho free tier SMTP for transactional email. Free Zoho plans block SMTP authentication. Use Brevo instead.
 
 ---
 
@@ -760,9 +833,352 @@ apiInstance.setApiKey(
   TransactionalEmailsApiApiKeys.apiKey,
   process.env.BREVO_API_KEY!
 );
+
+const FROM_NAME = process.env.BREVO_FROM_NAME!;
+const FROM_EMAIL = process.env.BREVO_FROM_EMAIL!;
 ```
 
-> ⚠️ Do not use Zoho free tier SMTP for transactional email. Free Zoho plans block SMTP authentication. Use Brevo instead.
+This runs once when the module is loaded. Every email function in the file shares the same `apiInstance`.
+
+---
+
+## 🏗️ Adding a New Email — Step by Step
+
+### Step 1 — Write the template in `lib/mailer.ts`
+
+Every email function follows the same pattern. Copy an existing one as your starting point.
+
+```typescript
+export async function sendYourEmail({
+  to,
+  name,
+}: {
+  to: string;
+  name: string;
+}) {
+  const sendSmtpEmail = new SendSmtpEmail();
+
+  sendSmtpEmail.sender = { name: FROM_NAME, email: FROM_EMAIL };
+  sendSmtpEmail.to = [{ email: to, name }];
+  sendSmtpEmail.subject = "Your subject here";
+  sendSmtpEmail.htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <p>Hi ${name},</p>
+      <p>Your message here.</p>
+    </div>
+  `;
+
+  await apiInstance.sendTransacEmail(sendSmtpEmail);
+  console.log(`Your email sent to ${to}`);
+}
+```
+
+### Step 2 — Call it from the right server-side location
+
+Import the function and call it at the correct moment inside your API route, webhook handler, or cron route.
+
+```typescript
+import { sendYourEmail } from "@/lib/mailer";
+
+// After the event that triggers the email succeeds:
+await sendYourEmail({ to: email, name: customerName });
+```
+
+### Step 3 — Handle encrypted PII if needed
+
+If the email address or name comes from a MongoDB order document, it will be stored encrypted. Decrypt it before passing to the mailer.
+
+```typescript
+import { safeDecrypt } from "@/lib/encryption";
+
+const customerEmail = safeDecrypt(order.email);
+const customerName = safeDecrypt(order.shippingName) || "Customer";
+
+if (customerEmail) {
+  await sendYourEmail({ to: customerEmail, name: customerName });
+}
+```
+
+Always guard with `if (customerEmail)` — `safeDecrypt` returns `null` if decryption fails rather than throwing. This prevents a broken decryption from crashing your whole API route.
+
+---
+
+## 🖼️ Adding A Logo To Emails
+
+Emails cannot reference local files or relative paths. The logo must be an absolute URL pointing to a hosted file.
+
+Since this project is deployed on Vercel, any file in your `/public` folder is accessible at your domain:
+
+```html
+<img
+  src="${process.env.NEXT_PUBLIC_BASE_URL}/your-logo.jpg"
+  alt="Watch Shop"
+  style="height: 48px; width: auto;"
+/>
+```
+
+Add to `.env.local`:
+```bash
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+In production this should be your live Vercel URL. The logo will not appear in local email previews until the file is deployed and publicly accessible.
+
+---
+
+## 🔁 How To Rebuild This In A New Project
+
+- [ ] Create account at brevo.com and verify your sender email address
+- [ ] `npm install @getbrevo/brevo`
+- [ ] Add `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `BREVO_FROM_NAME` to `.env.local`
+- [ ] Add `NEXT_PUBLIC_BASE_URL` to `.env.local`
+- [ ] Create `lib/mailer.ts` — init `TransactionalEmailsApi`, set API key
+- [ ] Write one email function per email type
+- [ ] In each server-side caller (webhook, API route, cron), import and call the mailer function at the right moment
+- [ ] If the recipient data comes from MongoDB and is encrypted, decrypt with `safeDecrypt` before passing it in
+- [ ] Guard every email call with `if (customerEmail)` to handle decryption failures gracefully
+
+---
+
+---
+
+# 💸 Refund Flow
+
+## What This Does
+
+This project implements a token-based refund request flow. Customers do not get a self-serve instant refund button — they submit a request, and the admin reviews and approves or rejects it. This mirrors how real ecommerce stores handle refunds.
+
+**The full flow:**
+
+```
+Customer receives order confirmation email
+→ Email contains a unique "Request a refund" link
+→ Customer clicks the link → lands on /refund-request page
+→ Customer selects a reason and submits
+→ Admin sees a "Refund Requested" badge on the orders page
+→ Admin clicks Approve → Stripe processes the refund → customer receives refund email
+   OR
+→ Admin clicks Reject → refundStatus updated to rejected
+```
+
+---
+
+## 🔑 How The Token Works
+
+No customer account or login is needed. Instead, a unique token is generated when the order is created and stored on the order document. The token is embedded in the refund link in the confirmation email.
+
+When the customer visits the link, the server looks up the token in MongoDB and validates it matches the order ID in the URL. If both match, the page loads. If not, the customer sees an error.
+
+This means:
+- Only the person who received the confirmation email can access the refund page
+- The token is single-use in practice (refund status prevents double submission)
+- No auth system needed
+
+---
+
+## 🗄️ Order Document Fields Added
+
+Two fields are added to every order at creation time in the Stripe webhook:
+
+```typescript
+refundToken: randomUUID(),   // unique token for the refund link
+refundStatus: "none",        // none | requested | approved | rejected
+```
+
+When a refund is requested, two more fields are added:
+
+```typescript
+refundReason: "changed_mind",       // from the dropdown
+refundNote: "Optional note here",   // from the textarea
+refundRequestedAt: new Date(),
+```
+
+---
+
+## 📁 File Structure
+
+```
+app/
+├─ refund-request/
+│   ├─ page.tsx                  ← server component, validates token
+│   └─ RefundRequestForm.tsx     ← client component, the form UI
+│
+api/
+├─ refund-request/
+│   └─ route.ts                  ← handles POST from the form
+│
+api/admin/
+├─ refund/
+│   └─ [orderId]/
+│       └─ route.ts              ← admin approve/reject, calls Stripe
+```
+
+---
+
+## 🔄 Refund Request Page States
+
+The server component at `app/refund-request/page.tsx` handles four states before the form ever renders:
+
+| State | What The Customer Sees |
+|---|---|
+| Token or order ID missing from URL | "Invalid link" error message |
+| Token does not match order in MongoDB | "Invalid link" error message |
+| `refundStatus` is already `requested` | "Already submitted" message |
+| `refundStatus` is `approved` or `rejected` | "Request already processed" message |
+| `refundStatus` is `none` | The refund request form |
+
+The token is validated twice — once in the server component before the page loads, and again in the API route when the form is submitted.
+
+---
+
+## 🔁 How To Rebuild This In A New Project
+
+- [ ] Add `refundToken: randomUUID()` and `refundStatus: "none"` to the order document at creation time
+- [ ] Import `randomUUID` from `"crypto"` — no package needed, it is built into Node
+- [ ] Add `findByRefundToken(token)` method to your OrderDAO
+- [ ] Add `updateRefundStatus(orderId, status, reason?, note?)` method to your OrderDAO
+- [ ] Create `app/refund-request/page.tsx` — server component, reads token from URL search params, validates against DB, renders form or appropriate error state
+- [ ] Create `app/refund-request/RefundRequestForm.tsx` — client component with reason dropdown and notes textarea
+- [ ] Create `app/api/refund-request/route.ts` — validates token again, checks `refundStatus === "none"`, calls `updateRefundStatus`
+- [ ] Add refund link to confirmation email: `${baseUrl}/refund-request?token=${refundToken}&order=${orderId}`
+- [ ] Declare `refundToken` and `orderId` outside the MongoDB transaction so they are in scope when `sendOrderConfirmation` is called
+- [ ] Add Refund column to admin orders table — show badge + approve/reject buttons when `refundStatus === "requested"`
+- [ ] Create `app/api/admin/refund/[orderId]/route.ts` — verify admin JWT, fetch order, call `stripe.refunds.create()` if approving, call `updateRefundStatus`, send refund confirmation email
+- [ ] Decrypt PII with `safeDecrypt` before passing email and name to the refund confirmation email function
+
+---
+
+## 🚨 Troubleshooting The Refund Flow
+
+These are real bugs that came up building this feature.
+
+### "Invalid link" even though the token is saved in MongoDB
+
+The token in the email URL does not match the token stored in MongoDB. This happens when `randomUUID()` is called twice — once to save to the database, and once separately when building the email URL. They produce different values every time.
+
+The fix is to generate the token once, assign it to a variable, use that variable in both `createOrder` and `sendOrderConfirmation`.
+
+```typescript
+// ❌ Wrong — two different tokens
+await orderDAO.createOrder({ refundToken: randomUUID() });
+await sendOrderConfirmation({ refundToken: randomUUID() }); // different value!
+
+// ✅ Correct — one token used in both places
+const generatedToken = randomUUID();
+await orderDAO.createOrder({ refundToken: generatedToken });
+refundToken = generatedToken; // capture for use after transaction
+await sendOrderConfirmation({ refundToken }); // same value
+```
+
+---
+
+### Token in email URL is empty (`token=&order=...`)
+
+`refundToken` was declared outside the transaction but never assigned inside it. The variable stays as an empty string.
+
+```typescript
+// ❌ Wrong — assignment is missing
+let refundToken = "";
+await session.withTransaction(async () => {
+  const generatedToken = randomUUID();
+  await orderDAO.createOrder({ refundToken: generatedToken });
+  // forgot: refundToken = generatedToken
+});
+await sendOrderConfirmation({ refundToken }); // empty string
+
+// ✅ Correct — assign inside the transaction
+let refundToken = "";
+await session.withTransaction(async () => {
+  const generatedToken = randomUUID();
+  await orderDAO.createOrder({ refundToken: generatedToken });
+  refundToken = generatedToken; // ← this line is required
+});
+await sendOrderConfirmation({ refundToken }); // correct value
+```
+
+---
+
+### Admin approve button returns 401
+
+Two possible causes:
+
+**1. Using `verifyAdminPage()` instead of `verifyAdminApi()` in the route.**
+Page verification redirects on failure. API verification returns a response. Use the right one:
+
+```typescript
+// ❌ Wrong in an API route
+const admin = await verifyAdminPage();
+if (!admin.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+// ✅ Correct in an API route
+const adminCheck = await verifyAdminApi();
+if (adminCheck instanceof NextResponse) return adminCheck;
+```
+
+**2. Checking `.ok` on the result of `verifyAdminApi()`.**
+`verifyAdminApi` returns either an `AdminToken` object or a `NextResponse` — it has no `.ok` property. Use `instanceof NextResponse` to check for failure.
+
+---
+
+### `searchParams` or `params` is a Promise error (Next.js 15)
+
+Next.js 15 made both `searchParams` and `params` async. You must await them before accessing properties.
+
+```typescript
+// ❌ Wrong — Next.js 15 will throw
+export default async function Page({ searchParams }) {
+  const token = searchParams.token;
+}
+
+// ✅ Correct
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string; order?: string }>;
+}) {
+  const { token, order } = await searchParams;
+}
+```
+
+Same fix applies to dynamic route params:
+
+```typescript
+// ❌ Wrong
+export async function POST(req, { params }) {
+  const id = params.orderId;
+}
+
+// ✅ Correct
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ orderId: string }> },
+) {
+  const { orderId } = await params;
+}
+```
+
+---
+
+### TypeScript error parsing `.tsx` file with type annotations
+
+If a `.tsx` file produces a parse error on the `}: {` type annotation pattern, the file is likely saved as `.jsx`. JSX does not support TypeScript syntax.
+
+```bash
+# Check the actual extension on disk
+ls app/refund-request/
+
+# Rename if still .jsx
+mv app/refund-request/RefundRequestForm.jsx app/refund-request/RefundRequestForm.tsx
+
+# If the rename doesn't fix it, check what's actually in the file
+cat app/refund-request/RefundRequestForm.tsx | head -20
+```
+
+If the file on disk still has the wrong syntax, fix it directly:
+
+```bash
+sed -i 's/} {$/}: {/' app/refund-request/RefundRequestForm.tsx
+```
 
 ---
 
@@ -834,6 +1250,7 @@ A new random IV (initialisation vector) is generated for every encryption. This 
 | Shipping page | `safeDecrypt()` called when rendering the table |
 | Orders page | `safeDecrypt()` called when rendering the table |
 | FedEx shipment route | `decrypt()` called before building the FedEx payload |
+| Refund approval route | `safeDecrypt()` called before sending refund confirmation email |
 | Cron job | `safeDecrypt()` called before sending the demo completion email |
 
 ---
@@ -1049,34 +1466,46 @@ If you have lost all memory of this project but still know how to code, follow t
 - [ ] Create `app/api/admin/fedex-shipment/route.ts` — verify admin, decrypt PII, validate country, get token, build payload, call `/ship/v1/shipments`
 - [ ] Add `labelSpecification` block to payload — required or FedEx returns an error
 - [ ] Extract tracking number from `output.transactionShipments[0].masterTrackingNumber`
-- [ ] Call `OrderDAO.updateShipment()` to save tracking number as top level field (`trackingNumber` not `shipping.tracking_number`)
+- [ ] Call `OrderDAO.updateShipment()` to save tracking number as top level field
 - [ ] Send shipping notification email
 - [ ] Do NOT delete the order here — deletion is handled by the cron job after 24 hours
 
 ## Brevo Email
 
-- [ ] Create account at brevo.com and verify sender email
+- [ ] Create account at brevo.com and verify sender email address
 - [ ] `npm install @getbrevo/brevo`
-- [ ] Add `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `BREVO_FROM_NAME` to env
+- [ ] Add `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `BREVO_FROM_NAME`, `NEXT_PUBLIC_BASE_URL` to env
 - [ ] Create `lib/mailer.ts` — init `TransactionalEmailsApi`, set API key
-- [ ] Add `sendOrderConfirmation()` — called from Stripe webhook
+- [ ] Add `sendOrderConfirmation()` — called from Stripe webhook, include refund link
 - [ ] Add `sendShippingNotification()` — called from FedEx shipment route and cron auto-ship job
+- [ ] Add `sendRefundConfirmationEmail()` — called from refund approval route
 - [ ] Add `sendDemoCompletionEmail()` — called from cron auto-delete job
+- [ ] For any email that needs customer PII from MongoDB, decrypt with `safeDecrypt` before passing in
+- [ ] Guard every email send with `if (customerEmail)` to handle decryption failures gracefully
+
+## Refund Flow
+
+- [ ] Add `refundToken: randomUUID()` and `refundStatus: "none"` to order document in Stripe webhook
+- [ ] Declare `refundToken` and `orderId` outside the MongoDB transaction so they are in scope after it commits
+- [ ] Add `findByRefundToken(token)` to `OrderDAO`
+- [ ] Add `updateRefundStatus(orderId, status, reason?, note?)` to `OrderDAO`
+- [ ] Create `app/refund-request/page.tsx` — server component, validate token, handle all four states
+- [ ] Create `app/refund-request/RefundRequestForm.tsx` — client component, reason dropdown + notes textarea
+- [ ] Create `app/api/refund-request/route.ts` — validate token again, guard against duplicate submissions, call `updateRefundStatus`
+- [ ] Add refund link to confirmation email: `${baseUrl}/refund-request?token=${refundToken}&order=${orderId}`
+- [ ] Add Refund column to admin orders table with badge and approve/reject buttons
+- [ ] Create `app/api/admin/refund/[orderId]/route.ts` — verify admin, fetch order, call Stripe, send email, update status
 
 ## Auto-Ship + Auto-Delete Cron Job
 
 - [ ] Generate cron secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - [ ] Add `CRON_SECRET` to `.env.local`
-- [ ] Create `vercel.json` at root with `crons` schedule (`0 9 * * *` for daily at 9am UTC)
-- [ ] Create `app/api/cron/process-pending-orders/route.ts` with two jobs:
-  - Job 1 — auto-ship: finds orders older than 12hrs with no tracking number, calls FedEx, saves tracking number, sends shipping email
-  - Job 2 — auto-delete: finds orders older than 24hrs, sends demo completion email, deletes full order
-- [ ] Add `getOrdersNeedingAutoShip(cutoff: Date)` to `OrderDAO` — finds orders with `fulfillmentStatus: "pending"`, `createdAt < cutoff`, and `trackingNumber` not set
-- [ ] Add `getExpiredPendingOrders(cutoff: Date)` to `OrderDAO` — finds all orders where `createdAt < cutoff` (no status filter — catches both shipped and pending)
-- [ ] Add `deleteOrder(orderId)` to `OrderDAO` — deletes full order document
-- [ ] Add `updateShipment(orderId, trackingNumber)` to `OrderDAO` — saves `trackingNumber` at top level, sets `fulfillmentStatus: "shipped"`
-
----
+- [ ] Create `vercel.json` at root with `crons` schedule
+- [ ] Create `app/api/cron/process-pending-orders/route.ts` with Job 1 (auto-ship) and Job 2 (auto-delete)
+- [ ] Add `getOrdersNeedingAutoShip(cutoff)` to `OrderDAO`
+- [ ] Add `getExpiredPendingOrders(cutoff)` to `OrderDAO`
+- [ ] Add `deleteOrder(orderId)` to `OrderDAO`
+- [ ] Add `updateShipment(orderId, trackingNumber)` to `OrderDAO`
 
 ---
 
@@ -1116,8 +1545,6 @@ When someone tries to visit the dashboard, the guard does this — in order:
         ↓ YES → You are allowed in ✅
 ```
 
-If you fail any step, you are out. The dashboard never loads.
-
 ---
 
 ## 📁 Where The Guard Lives
@@ -1126,10 +1553,11 @@ If you fail any step, you are out. The dashboard never loads.
 lib/verifyAdmin.ts
 ```
 
-This one file IS the guard. It contains a single function:
+This one file IS the guard. It contains two functions:
 
 ```typescript
-export async function verifyAdminPage()
+export async function verifyAdminPage()  // for server component pages
+export async function verifyAdminApi()   // for API routes
 ```
 
 ---
@@ -1137,31 +1565,19 @@ export async function verifyAdminPage()
 ## 🧠 What The Guard Does In Code
 
 ```typescript
-// lib/verifyAdmin.ts
-
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import jwt from "jsonwebtoken";
 
 export async function verifyAdminPage() {
-  // Step 1 — Get the cookie
   const token = cookies().get("admin_token")?.value;
-
-  // Step 2 — No cookie? Leave immediately
   if (!token) redirect("/admin/login");
 
   try {
-    // Step 3 — Check if the JWT is real and not expired
     const payload = jwt.verify(token, process.env.ADMIN_JWT_SECRET!) as any;
-
-    // Step 4 — Check if the role is "admin"
     if (payload.role !== "admin") redirect("/admin/login");
-
-    // Step 5 — Everything passed, return the admin info
     return payload;
-
   } catch {
-    // JWT was fake, tampered with, or expired
     redirect("/admin/login");
   }
 }
@@ -1171,50 +1587,15 @@ export async function verifyAdminPage() {
 
 ## 🏗️ How To Use It In A Protected Page
 
-Before this existed, every protected page had its own copy of the JWT checking code. That meant:
-- The same code in 5 places
-- If you change auth later, you have to update 5 places
-- Easy to forget one and leave a page unprotected
-
-Now every protected page does just this:
-
 ```typescript
 // app/admin/dashboard/page.tsx
-
 import { verifyAdminPage } from "@/lib/verifyAdmin";
 
 export default async function DashboardPage() {
-
-  // This one line does ALL the checking
-  const admin = await verifyAdminPage();
-
-  // If you reach this line, the person is definitely the admin
-  // The redirect already happened if they weren't
-
-  return (
-    <div>
-      <h1>Welcome to the dashboard</h1>
-    </div>
-  );
+  await verifyAdminPage(); // one line — handles everything
+  return <div>Welcome to the dashboard</div>;
 }
 ```
-
-That is the whole thing. One line. The guard handles everything else.
-
----
-
-## 🔁 Why One File Is Better Than Many
-
-Think of it like a key card machine at an office.
-
-You could put a separate lock on every single door with its own combination. But then:
-- You have to remember 10 combinations
-- Changing the security means changing 10 locks
-- You will forget to update one
-
-Or you could have one key card machine that every door uses. Change the machine once, all doors update automatically.
-
-`lib/verifyAdmin.ts` is the key card machine.
 
 ---
 
@@ -1235,8 +1616,9 @@ Or you could have one key card machine that every door uses. Change the machine 
 - [ ] Create `lib/verifyAdmin.ts`
 - [ ] Import `cookies` from `next/headers`, `redirect` from `next/navigation`, `jwt` from `jsonwebtoken`
 - [ ] Write `verifyAdminPage()` — get cookie → verify JWT → check role → redirect or return payload
-- [ ] In every protected page, call `const admin = await verifyAdminPage()` as the very first line
-- [ ] In every protected API route, call the same function before doing anything else
+- [ ] Write `verifyAdminApi()` — same logic but returns a response instead of redirecting
+- [ ] In every protected page, call `await verifyAdminPage()` as the very first line
+- [ ] In every protected API route, call `verifyAdminApi(req)` before doing anything else
 - [ ] Make sure `ADMIN_JWT_SECRET` is in your `.env.local`
 
 ---
@@ -1247,4 +1629,4 @@ Or you could have one key card machine that every door uses. Change the machine 
 
 ---
 
-*Built with Next.js · MongoDB · Stripe · WebAuthn · @simplewebauthn v13*
+*Built with Next.js · MongoDB · Stripe · WebAuthn · @simplewebauthn v13 · Brevo · FedEx Sandbox · AES-256-GCM*

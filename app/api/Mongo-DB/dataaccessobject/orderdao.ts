@@ -32,6 +32,41 @@ export default class OrderDAO {
     return await collection.findOne({ _id: new ObjectId(orderId) }); // ✅ ObjectId not Object
   }
 
+  static async findByRefundToken(token: string) {
+    const collection = await this.collection();
+
+    // DEBUG
+    console.log("searching for token:", token);
+    console.log("db name:", process.env.Mongo_DB_Name);
+    const count = await collection.countDocuments();
+    console.log("total docs in collection:", count);
+    const sample = await collection.findOne({});
+    console.log("sample doc fields:", sample ? Object.keys(sample) : "no docs");
+
+    console.log("stored refundToken:", sample?.refundToken); // ← add this
+    console.log("stored _id:", sample?._id.toString()); // ← add this
+    return await collection.findOne({ refundToken: token });
+  }
+
+  static async updateRefundStatus(
+    orderId: string,
+    status: "requested" | "approved" | "rejected",
+    reason?: string,
+    note?: string,
+  ) {
+    const collection = await this.collection();
+    return await collection.updateOne(
+      { _id: new ObjectId(orderId) },
+      {
+        $set: {
+          refundStatus: status,
+          ...(reason && { refundReason: reason }),
+          ...(note && { refundNote: note }),
+          refundRequestedAt: new Date(),
+        },
+      },
+    );
+  }
   static async updateShipment(orderId: string, trackingNumber: string) {
     const collection = await this.collection();
     return await collection.updateOne(
