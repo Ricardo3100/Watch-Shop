@@ -27,7 +27,20 @@ export default async function ProductPage({
       </section>
     );
   }
-
+// Next.js 13's server components don't 
+// allow us to use the product object 
+// directly in the AddToCartButton, 
+// which is a client component. 
+// We need to serialize it first then call it in the button
+  const serializedProduct = {
+    _id: product._id.toString(),
+    name: product.name,
+    price: product.price,
+    image: product.image,
+    description: product.description ?? "",
+    category: product.category ?? "",
+    stock: product.stock,
+  };
   return (
     <section className="max-w-6xl mx-auto px-4 py-16">
       {BackLink}
@@ -57,7 +70,7 @@ export default async function ProductPage({
               {product.description}
             </p>
           )}
-          <AddToCartButton product={product} />
+          <AddToCartButton product={serializedProduct} />
         </div>
       </div>
     </section>
