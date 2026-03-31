@@ -1,8 +1,9 @@
 // Import the MongoDB client connection we created in /lib/mongodb
 import clientPromise from "../mongodb";
+import { DBProduct, Product, CreateProductInput } from "@/types/product";
 
 // ObjectId is needed when querying by _id
-import { ObjectId } from "mongodb";
+import { ObjectId, WithoutId } from "mongodb";
 
 /**
  * Product Interface
@@ -14,19 +15,19 @@ import { ObjectId } from "mongodb";
  * MongoDB itself is schema-less unless configured otherwise,
  * so this interface acts as our application-level schema.
  */
-export interface Product {
-  category: string; 
-  image: string;
-  name: string;
-  price: number;
-  stock: number;
-  description: string;
+// export interface Product {
+//   category: string; 
+//   image: string;
+//   name: string;
+//   price: number;
+//   stock: number;
+//   description: string;
 
-  // These are manually handled since we are not using
-  // Mongoose's { timestamps: true }
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+//   // These are manually handled since we are not using
+//   // Mongoose's { timestamps: true }
+//   createdAt?: Date;
+//   updatedAt?: Date;
+// }
 
 /**
  * ProductDAO
@@ -65,7 +66,8 @@ export default class ProductDAO {
     const db = client.db(dbName);
 
     // Step 4: Return the collection
-    return db.collection<Product>("products");
+return db.collection<WithoutId<DBProduct>>("products");
+    // return db.collection<Product>("products");
   }
 
   /**
@@ -77,7 +79,7 @@ export default class ProductDAO {
    * Since we do not have schema validation,
    * we manually ensure required fields exist.
    */
-  static async create(product: Product) {
+  static async create(product: CreateProductInput) {
     const collection = await this.collection();
 
     // Manual "required: true" validation
@@ -153,12 +155,21 @@ export default class ProductDAO {
    * MongoDB _id is an ObjectId, not a string.
    * So we convert the string into ObjectId.
    */
-  static async getById(id: string) {
+  static async getById(id: string): Promise<Product | null> {
     const collection = await this.collection();
 
-    return await collection.findOne({
+    const dbProduct = (await collection.findOne({
       _id: new ObjectId(id),
-    });
+    })) as DBProduct | null;
+
+    if (!dbProduct) return null;
+
+    return {
+      ...dbProduct,
+      _id: dbProduct._id.toString(),
+      createdAt: dbProduct.createdAt.toISOString(),
+      updatedAt: dbProduct.updatedAt.toISOString(),
+    };
   }
   static async atomicDecreaseStock(
     productId: string,

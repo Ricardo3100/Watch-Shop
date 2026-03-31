@@ -1,5 +1,5 @@
 import clientPromise from "../api/Mongo-DB/mongodb";
-
+import { Admin } from "@/types/admin";
 export async function getAdminCollection() {
   const dbName = process.env.Mongo_DB_Name;
 
@@ -9,6 +9,7 @@ export async function getAdminCollection() {
 
   const client = await clientPromise;
   const db = client.db(dbName);
-
-  return db.collection("admin");
+  // IMPORTANT: Without <Admin>, this defaults to Document and breaks type safety for nested fields
+  //  (e.g. credentials with $pull)
+  return db.collection<Admin>("admin");
 }

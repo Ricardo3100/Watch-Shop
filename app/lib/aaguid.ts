@@ -25,9 +25,7 @@ const AAGUID_MAP: Record<string, { name: string; emoji: string }> = {
   // Dashlane
   "d548826e-79b4-db40-a3d8-11116f7e8349": { name: "Dashlane", emoji: "🔑" },
 
-  // Bitwarden
-  "d548826e-79b4-db40-a3d8-11116f7e8349": { name: "Bitwarden", emoji: "🔑" },
-
+  
   // YubiKey hardware keys
   "2fc0579f-8113-47ea-b116-bb5a8db9202a": { name: "YubiKey 5", emoji: "🔐" },
   "73bb0cd4-e502-49b8-9c6f-b59445bf720b": { name: "YubiKey 5 NFC", emoji: "🔐" },

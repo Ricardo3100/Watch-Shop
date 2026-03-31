@@ -10,7 +10,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }, // ← Promise type
-) {
+) 
+{
   const adminCheck = await verifyAdminApi();
   // If it returned a NextResponse, it means auth failed — return it directly
   if (adminCheck instanceof NextResponse) {

@@ -7,7 +7,7 @@ import { useStateContext } from "../context/statecontext";
 import { useRouter } from "next/navigation";
 
 const Cart = () => {
-  const cartRef = useRef();
+const cartRef = useRef<HTMLDivElement>(null);
   const {
     totalPrice,
     totalQuantities,
@@ -19,7 +19,11 @@ const Cart = () => {
   } = useStateContext();
 const router = useRouter();
 
-  const eUSLocale = (x) => x.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+const eUSLocale = (x: number) =>
+  x.toLocaleString("en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  });
 
   return (
     <>

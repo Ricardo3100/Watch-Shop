@@ -4,7 +4,9 @@ import { getAdminCollection } from "../../../lib/admincollections";
 
 export async function GET() {
   const admins = await getAdminCollection();
-  const admin = await admins.findOne({});
+  const admin = (await admins.findOne({})) as
+    | import("@/types/admin").Admin
+    | null;
 
   if (!admin || !admin.credentials?.length) {
     return NextResponse.json(

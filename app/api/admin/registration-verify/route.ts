@@ -1,4 +1,6 @@
 export const runtime = "nodejs";
+import { isoBase64URL } from "@simplewebauthn/server/helpers";
+import { Binary } from "mongodb";
 
 import { verifyRegistrationResponse } from "@simplewebauthn/server";
 import { NextResponse } from "next/server";
@@ -9,7 +11,9 @@ export async function POST(req: Request) {
   const body = await req.json();
 
   const admins = await getAdminCollection();
-  const admin = await admins.findOne({});
+  const admin = (await admins.findOne({})) as
+    | import("@/types/admin").Admin
+    | null;
 
   if (!admin || !admin.currentChallenge) {
     return NextResponse.json(
@@ -50,7 +54,8 @@ export async function POST(req: Request) {
     const transports = body.response.transports || [];
 
     // Format AAGUID bytes into UUID string and look up device name
-    const aaguidString = formatAaguid(aaguid);
+    const aaguidBytes = isoBase64URL.toBuffer(aaguid);
+    const aaguidString = formatAaguid(aaguidBytes);
     const device = lookupDevice(aaguidString, transports);
 
     await admins.updateOne(
@@ -58,8 +63,9 @@ export async function POST(req: Request) {
       {
         $push: {
           credentials: {
+            
             credentialID: credential.id,
-            publicKey: credential.publicKey,
+            publicKey: new Binary(credential.publicKey),
             counter: credential.counter,
             transports,
             aaguid: aaguidString,

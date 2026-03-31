@@ -44,7 +44,7 @@ const paymentIntent = await stripe.paymentIntents.create({
   amount: total * 100,
   // reciept_email is a convenient way to
   //  ensure we have the customer's email i
-  // n the PaymentIntent, which can be 
+  // n the PaymentIntent, which can be
   // useful for sending receipts and for our webhook processing.
   //  We also include it in metadata as a fallback.
   receipt_email: shipping.email,
@@ -52,8 +52,8 @@ const paymentIntent = await stripe.paymentIntents.create({
   automatic_payment_methods: { enabled: true },
 
   metadata: {
-    
-    email: shipping.email, // for your webhook safety
+    email: shipping.email,
+    cart: JSON.stringify(minimalCart),
   },
   // we include shipping details in the
   //  PaymentIntent so that we have
@@ -68,10 +68,6 @@ const paymentIntent = await stripe.paymentIntents.create({
       postal_code: shipping.postalCode,
       country: shipping.country,
     },
-  },
-
-  metadata: {
-    cart: JSON.stringify(minimalCart),
   },
 });
 

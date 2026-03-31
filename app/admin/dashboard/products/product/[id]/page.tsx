@@ -1,8 +1,11 @@
-import ProductDAO from "../../../../../api/Mongo-DB/dataaccessobject/productdao
+import ProductDAO from "../../../../../api/Mongo-DB/dataaccessobject/productdao";
 import Link from "next/link";
 import { AiOutlineArrowLeft } from "react-icons/ai";
 import Image from "next/image";
-import AddToCartButton from "../../components/";
+import AddToCartButton from "../../../../../components/AddToCartButton";
+import { DBProduct, Product } from "@/types/product";
+import { ObjectId } from "mongodb";
+
 
 export default async function ProductPage({
   params,
@@ -12,6 +15,7 @@ export default async function ProductPage({
   const { id } = await params;
   const product = await ProductDAO.getById(id);
 
+  
   const BackLink = (
     <Link href="/products" className="flex items-center gap-2 mb-8">
       <AiOutlineArrowLeft />

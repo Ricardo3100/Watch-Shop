@@ -9,7 +9,9 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth;
 
   const admins = await getAdminCollection();
-  const admin = await admins.findOne({});
+  const admin = (await admins.findOne({})) as
+    | import("@/types/admin").Admin
+    | null;
 
   if (!admin) {
     return NextResponse.json({ error: "Admin not found" }, { status: 404 });

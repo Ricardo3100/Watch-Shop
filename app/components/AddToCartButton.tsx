@@ -1,8 +1,8 @@
 "use client";
 
 import { useStateContext } from "../context/statecontext";
-
-export default function AddToCartButton({ product }) {
+import { Product } from "@/types/product";
+export default function AddToCartButton({ product }: { product: Product }) {
   const { onAdd } = useStateContext();
 
   return (

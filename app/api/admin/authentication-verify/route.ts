@@ -25,11 +25,18 @@ export async function POST(req: Request) {
   // Get MongoDB collection for admins
   const admins = await getAdminCollection();
 
-  // Get the admin user (assuming single admin for simplicity)
-  const admin = await admins.findOne({});
+  // For simplicity, we assume there's only one admin document.
+  const admin = (await admins.findOne({})) as
+    | import("@/types/admin").Admin
+    | null;
 
-  // If no admin or no authentication challenge in progress, reject
-  if (!admin || !admin.currentChallenge) {
+  // Ensure admin exists
+  if (!admin) {
+    return NextResponse.json({ error: "No admin found" }, { status: 400 });
+  }
+
+  // Ensure a challenge is in progress
+  if (!admin.currentChallenge) {
     return NextResponse.json(
       { error: "No authentication in progress" },
       { status: 400 },
@@ -38,7 +45,10 @@ export async function POST(req: Request) {
 
   // 🔹 Find the stored credential matching the incoming credential ID
   const credential = admin.credentials.find(
-    (cred: any) => cred.credentialID === body.id, // ID is base64url string
+    // ID is base64url string
+    // delete any versioon later
+    // (cred: any) => cred.credentialID === body.id,
+    (cred) => cred.credentialID === body.id,
   );
 
   // If credential not found, reject
@@ -89,8 +99,7 @@ export async function POST(req: Request) {
       },
     );
 
-    
-    // When Authentication succeeds, 
+    // When Authentication succeeds,
     // generate a JWT token for the admin session
     const token = jwt.sign(
       {

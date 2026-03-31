@@ -7,26 +7,22 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { Product, CartItem } from "@/types/product";
+
 import { toast } from "react-hot-toast";
 
 /* ===============================
    TYPES
 =============================== */
 
-export interface Product {
-  _id: string;
-  name: string;
-  price: number;
-  
-  image?: any;
-  quantity: number;
-  stock: number;
-}
+
 
 interface CartContextType {
   showCart: boolean;
   setShowCart: React.Dispatch<React.SetStateAction<boolean>>;
-  cartItems: Product[];
+  // CartItem[] is more accurate than
+  //  Product[] because we need the quantity field for cart operations
+  cartItems: CartItem[]; // ← was Product[]
   totalPrice: number;
   totalQuantities: number;
   qty: number;
@@ -34,8 +30,8 @@ interface CartContextType {
   incQty: (stock: number) => void;
   decQty: () => void;
   onAdd: (product: Product, quantity: number) => void;
+  onRemove: (product: CartItem) => void; // ← was Product
   toggleCartItemQuantity: (id: string, value: "inc" | "dec") => void;
-  onRemove: (product: Product) => void;
   clearCart: () => void;
 }
 
@@ -47,7 +43,12 @@ const Context = createContext<CartContextType | undefined>(undefined);
 
 export const StateContext = ({ children }: { children: ReactNode }) => {
   const [showCart, setShowCart] = useState<boolean>(false);
-  const [cartItems, setCartItems] = useState<Product[]>([]);
+//  We need CartItem[] here because we 
+// need to track the quantity of each product in the cart.
+  const [cartItems, setCartItems] = useState<CartItem[]>([]); // ← was Product[]
+// totalPrice and totalQuantities are
+//  derived from cartItems, but we keep t
+// hem in state for easy access and performance.
   const [totalPrice, setTotalPrice] = useState<number>(0);
   const [totalQuantities, setTotalQuantities] = useState<number>(0);
   const [qty, setQty] = useState<number>(1);
@@ -84,40 +85,41 @@ export const StateContext = ({ children }: { children: ReactNode }) => {
   /* ===============================
      ADD TO CART
   =============================== */
-const onAdd = (product: Product, quantity: number) => {
-  const existingProduct = cartItems.find((item) => item._id === product._id);
+  const onAdd = (product: Product, quantity: number) => {
+    const existingProduct = cartItems.find((item) => item._id === product._id);
+// If the product is already in the cart, 
+// we need to check the current quantity
+//  in the cart before adding more.
+const currentQuantity = existingProduct?.quantity ?? 0;
 
-  const currentQuantity = existingProduct ? existingProduct.quantity : 0;
+    // 🚨 STOCK CHECK
+    if (currentQuantity + quantity > product.stock) {
+      toast.error("Not enough stock available.");
+      return;
+    }
 
-  // 🚨 STOCK CHECK
-  if (currentQuantity + quantity > product.stock) {
-    toast.error("Not enough stock available.");
-    return;
-  }
+    setTotalPrice((prev) => prev + product.price * quantity);
+    setTotalQuantities((prev) => prev + quantity);
 
-  setTotalPrice((prev) => prev + product.price * quantity);
-  setTotalQuantities((prev) => prev + quantity);
+    if (existingProduct) {
+      const updatedCartItems = cartItems.map((item) =>
+        item._id === product._id
+          ? { ...item, quantity: item.quantity + quantity }
+          : item,
+      );
 
-  if (existingProduct) {
-    const updatedCartItems = cartItems.map((item) =>
-      item._id === product._id
-        ? { ...item, quantity: item.quantity + quantity }
-        : item,
-    );
+      setCartItems(updatedCartItems);
+    } else {
+      setCartItems([...cartItems, { ...product, quantity }]);
+    }
 
-    setCartItems(updatedCartItems);
-  } else {
-    setCartItems([...cartItems, { ...product, quantity }]);
-  }
-
-  toast.success(`${quantity} ${product.name} added to the cart.`);
-};
-
+    toast.success(`${quantity} ${product.name} added to the cart.`);
+  };
 
   /* ===============================
      REMOVE
   =============================== */
-  const onRemove = (product: Product) => {
+  const onRemove = (product: CartItem) => {
     const foundProduct = cartItems.find((item) => item._id === product._id);
 
     if (!foundProduct) return;
@@ -134,49 +136,48 @@ const onAdd = (product: Product, quantity: number) => {
   /* ===============================
      TOGGLE QUANTITY
   =============================== */
-const toggleCartItemQuantity = (id: string, value: "inc" | "dec") => {
-  const updatedCartItems = cartItems.map((item) => {
-    if (item._id === id) {
-      if (value === "inc") {
-        // 🚨 STOCK CHECK
-        if (item.quantity >= item.stock) {
-          toast.error("Maximum stock reached");
-          return item;
+  const toggleCartItemQuantity = (id: string, value: "inc" | "dec") => {
+    const updatedCartItems = cartItems.map((item) => {
+      if (item._id === id) {
+        if (value === "inc") {
+          // 🚨 STOCK CHECK
+          if (item.quantity >= item.stock) {
+            toast.error("Maximum stock reached");
+            return item;
+          }
+
+          setTotalPrice((prev) => prev + item.price);
+          setTotalQuantities((prev) => prev + 1);
+
+          return { ...item, quantity: item.quantity + 1 };
         }
 
-        setTotalPrice((prev) => prev + item.price);
-        setTotalQuantities((prev) => prev + 1);
+        if (value === "dec" && item.quantity > 1) {
+          setTotalPrice((prev) => prev - item.price);
+          setTotalQuantities((prev) => prev - 1);
 
-        return { ...item, quantity: item.quantity + 1 };
+          return { ...item, quantity: item.quantity - 1 };
+        }
       }
 
-      if (value === "dec" && item.quantity > 1) {
-        setTotalPrice((prev) => prev - item.price);
-        setTotalQuantities((prev) => prev - 1);
+      return item;
+    });
 
-        return { ...item, quantity: item.quantity - 1 };
-      }
-    }
-
-    return item;
-  });
-
-  setCartItems(updatedCartItems);
-};
-
+    setCartItems(updatedCartItems);
+  };
 
   /* ===============================
      PRODUCT PAGE QTY
   =============================== */
-const incQty = (stock: number) => {
-  setQty((prev) => {
-    if (prev >= stock) {
-      toast.error("No more stock available.");
-      return prev;
-    }
-    return prev + 1;
-  });
-};
+  const incQty = (stock: number) => {
+    setQty((prev) => {
+      if (prev >= stock) {
+        toast.error("No more stock available.");
+        return prev;
+      }
+      return prev + 1;
+    });
+  };
 
   const decQty = () => setQty((prev) => (prev - 1 < 1 ? 1 : prev - 1));
 

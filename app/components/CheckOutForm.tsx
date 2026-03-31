@@ -7,7 +7,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { useState } from "react";
 
-export default function CheckoutForm({ total }) {
+export default function CheckoutForm({ total }: { total: number }) {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);

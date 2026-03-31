@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useStateContext } from "../context/statecontext";
+import { Product } from "@/types/product";
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product }: { product: Product }) {
+ {
   const { onAdd } = useStateContext();
 
   return (
@@ -34,3 +36,4 @@ export default function ProductCard({ product }) {
     </div>
   );
 }
+};

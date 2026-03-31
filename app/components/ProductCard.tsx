@@ -1,9 +1,10 @@
 "use client";
+import { Product } from "@/types/product";
 
 import Link from "next/link";
 import { useStateContext } from "../context/statecontext";
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product }: { product: Product }) {
   const { onAdd } = useStateContext();
 
   return (
@@ -18,7 +19,7 @@ export default function ProductCard({ product }) {
           />
 
           <h3 className="mt-4 font-semibold">{product.name}</h3>
-          
+
           <p className="text-gray-600">${product.price}</p>
           <p className="text-gray-600">{product.stock} in stock</p>
         </div>
