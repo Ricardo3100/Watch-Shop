@@ -58,16 +58,7 @@ const plainProducts = products.map((p: any) => ({
               <ProductCard key={product._id} product={product} />
             ))}
           </div>
-          <div className="mt-6">
-            <a href="/products" className="text-sm underline">
-              View all →
-            </a>
-          </div>
-          <div className="mt-6">
-            <a href={`/category/${plainProducts[0]?.category}`} className="text-sm underline">
-              View all →
-            </a>
-          </div>
+       
         </>
       )}
     </>
