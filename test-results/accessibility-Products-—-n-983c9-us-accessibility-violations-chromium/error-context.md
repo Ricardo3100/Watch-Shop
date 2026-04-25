@@ -1,0 +1,184 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link "Watch Shop" [ref=e5] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e7]:
+        - img [ref=e8]
+        - textbox "Search watches..." [ref=e10]
+      - generic [ref=e11]:
+        - link "Products" [ref=e12] [cursor=pointer]:
+          - /url: /products
+        - link "About" [ref=e13] [cursor=pointer]:
+          - /url: /about
+        - button "Open cart" [ref=e14]:
+          - img [ref=e15]
+        - link "Admin" [ref=e17] [cursor=pointer]:
+          - /url: /admin/login
+  - heading "All Products" [level=1] [ref=e18]
+  - combobox [ref=e20]:
+    - option "All Watches" [selected]
+    - option "Pocket Watch"
+    - option "Smart Watch"
+    - option "Wrist Watch"
+  - generic [ref=e21]:
+    - generic [ref=e22]:
+      - link "Amarynthian Silver Pocket Watch Amarynthian Silver Pocket Watch $60 87 in stock" [ref=e23] [cursor=pointer]:
+        - /url: /product/6992295ab8a5ed2b964a0dd2
+        - generic [ref=e24]:
+          - img "Amarynthian Silver Pocket Watch" [ref=e25]
+          - heading "Amarynthian Silver Pocket Watch" [level=3] [ref=e26]
+          - paragraph [ref=e27]: $60
+          - paragraph [ref=e28]: 87 in stock
+      - button "Add to Cart" [ref=e29]
+    - generic [ref=e30]:
+      - link "Apple smart watch Apple smart watch $99 37 in stock" [ref=e31] [cursor=pointer]:
+        - /url: /product/699261f3b8a5ed2b964a0dd3
+        - generic [ref=e32]:
+          - img "Apple smart watch" [ref=e33]
+          - heading "Apple smart watch" [level=3] [ref=e34]
+          - paragraph [ref=e35]: $99
+          - paragraph [ref=e36]: 37 in stock
+      - button "Add to Cart" [ref=e37]
+    - generic [ref=e38]:
+      - link "Ajul Smart Watch Ajul Smart Watch $60 26 in stock" [ref=e39] [cursor=pointer]:
+        - /url: /product/69926fa98203e7e4a3de0696
+        - generic [ref=e40]:
+          - img "Ajul Smart Watch" [ref=e41]
+          - heading "Ajul Smart Watch" [level=3] [ref=e42]
+          - paragraph [ref=e43]: $60
+          - paragraph [ref=e44]: 26 in stock
+      - button "Add to Cart" [ref=e45]
+    - generic [ref=e46]:
+      - link "Azur Comet Smart Watch Azur Comet Smart Watch $70 100 in stock" [ref=e47] [cursor=pointer]:
+        - /url: /product/699272928203e7e4a3de0697
+        - generic [ref=e48]:
+          - img "Azur Comet Smart Watch" [ref=e49]
+          - heading "Azur Comet Smart Watch" [level=3] [ref=e50]
+          - paragraph [ref=e51]: $70
+          - paragraph [ref=e52]: 100 in stock
+      - button "Add to Cart" [ref=e53]
+    - generic [ref=e54]:
+      - link "Altair Smart Watch Altair Smart Watch $200 8 in stock" [ref=e55] [cursor=pointer]:
+        - /url: /product/69928b668203e7e4a3de0698
+        - generic [ref=e56]:
+          - img "Altair Smart Watch" [ref=e57]
+          - heading "Altair Smart Watch" [level=3] [ref=e58]
+          - paragraph [ref=e59]: $200
+          - paragraph [ref=e60]: 8 in stock
+      - button "Add to Cart" [ref=e61]
+    - generic [ref=e62]:
+      - link "Siluvian Smart Watch Siluvian Smart Watch $200 18 in stock" [ref=e63] [cursor=pointer]:
+        - /url: /product/69928fc18203e7e4a3de0699
+        - generic [ref=e64]:
+          - img "Siluvian Smart Watch" [ref=e65]
+          - heading "Siluvian Smart Watch" [level=3] [ref=e66]
+          - paragraph [ref=e67]: $200
+          - paragraph [ref=e68]: 18 in stock
+      - button "Add to Cart" [ref=e69]
+    - generic [ref=e70]:
+      - link "Rolo Gold Rolo Gold $100 19 in stock" [ref=e71] [cursor=pointer]:
+        - /url: /product/699292608203e7e4a3de069a
+        - generic [ref=e72]:
+          - img "Rolo Gold" [ref=e73]
+          - heading "Rolo Gold" [level=3] [ref=e74]
+          - paragraph [ref=e75]: $100
+          - paragraph [ref=e76]: 19 in stock
+      - button "Add to Cart" [ref=e77]
+    - generic [ref=e78]:
+      - link "Illuvian Silver Illuvian Silver $200 19 in stock" [ref=e79] [cursor=pointer]:
+        - /url: /product/699295058203e7e4a3de069b
+        - generic [ref=e80]:
+          - img "Illuvian Silver" [ref=e81]
+          - heading "Illuvian Silver" [level=3] [ref=e82]
+          - paragraph [ref=e83]: $200
+          - paragraph [ref=e84]: 19 in stock
+      - button "Add to Cart" [ref=e85]
+    - generic [ref=e86]:
+      - link "Anul Silver Anul Silver $160 18 in stock" [ref=e87] [cursor=pointer]:
+        - /url: /product/6992965f8203e7e4a3de069c
+        - generic [ref=e88]:
+          - img "Anul Silver" [ref=e89]
+          - heading "Anul Silver" [level=3] [ref=e90]
+          - paragraph [ref=e91]: $160
+          - paragraph [ref=e92]: 18 in stock
+      - button "Add to Cart" [ref=e93]
+    - generic [ref=e94]:
+      - link "Gold Summer Gold Summer $90 18 in stock" [ref=e95] [cursor=pointer]:
+        - /url: /product/699297ff8203e7e4a3de069d
+        - generic [ref=e96]:
+          - img "Gold Summer" [ref=e97]
+          - heading "Gold Summer" [level=3] [ref=e98]
+          - paragraph [ref=e99]: $90
+          - paragraph [ref=e100]: 18 in stock
+      - button "Add to Cart" [ref=e101]
+    - generic [ref=e102]:
+      - link "Amber Summer Amber Summer $60 20 in stock" [ref=e103] [cursor=pointer]:
+        - /url: /product/699298b58203e7e4a3de069e
+        - generic [ref=e104]:
+          - img "Amber Summer" [ref=e105]
+          - heading "Amber Summer" [level=3] [ref=e106]
+          - paragraph [ref=e107]: $60
+          - paragraph [ref=e108]: 20 in stock
+      - button "Add to Cart" [ref=e109]
+    - generic [ref=e110]:
+      - link "Adam Kimmel Original Adam Kimmel Original $80 19 in stock" [ref=e111] [cursor=pointer]:
+        - /url: /product/6992afd58203e7e4a3de069f
+        - generic [ref=e112]:
+          - img "Adam Kimmel Original" [ref=e113]
+          - heading "Adam Kimmel Original" [level=3] [ref=e114]
+          - paragraph [ref=e115]: $80
+          - paragraph [ref=e116]: 19 in stock
+      - button "Add to Cart" [ref=e117]
+    - generic [ref=e118]:
+      - link "Smithson Original Smithson Original $80 55 in stock" [ref=e119] [cursor=pointer]:
+        - /url: /product/6992b46a8203e7e4a3de06a0
+        - generic [ref=e120]:
+          - img "Smithson Original" [ref=e121]
+          - heading "Smithson Original" [level=3] [ref=e122]
+          - paragraph [ref=e123]: $80
+          - paragraph [ref=e124]: 55 in stock
+      - button "Add to Cart" [ref=e125]
+    - generic [ref=e126]:
+      - link "Mikealson Mikealson $40 20 in stock" [ref=e127] [cursor=pointer]:
+        - /url: /product/6992b5bc8203e7e4a3de06a1
+        - generic [ref=e128]:
+          - img "Mikealson" [ref=e129]
+          - heading "Mikealson" [level=3] [ref=e130]
+          - paragraph [ref=e131]: $40
+          - paragraph [ref=e132]: 20 in stock
+      - button "Add to Cart" [ref=e133]
+    - generic [ref=e134]:
+      - link "Bravn Bravn $60 8 in stock" [ref=e135] [cursor=pointer]:
+        - /url: /product/6992b8698203e7e4a3de06a2
+        - generic [ref=e136]:
+          - img "Bravn" [ref=e137]
+          - heading "Bravn" [level=3] [ref=e138]
+          - paragraph [ref=e139]: $60
+          - paragraph [ref=e140]: 8 in stock
+      - button "Add to Cart" [ref=e141]
+  - contentinfo [ref=e142]:
+    - generic [ref=e143]:
+      - link "Privacy Policy" [ref=e144] [cursor=pointer]:
+        - /url: /privacy-policy
+      - link "VPAT" [ref=e145] [cursor=pointer]:
+        - /url: /
+      - link "Accessibility Statement" [ref=e146] [cursor=pointer]:
+        - /url: /accessibility-statement
+      - link "Terms of Service" [ref=e147] [cursor=pointer]:
+        - /url: /terms-of-service
+      - link "Contact" [ref=e148] [cursor=pointer]:
+        - /url: /
+    - generic [ref=e149]:
+      - paragraph [ref=e150]: "[Ricardo Rodriguez En-visioning Solutions]"
+      - paragraph [ref=e151]: © 2026
+      - paragraph [ref=e152]: All rights reserved.
+      - paragraph [ref=e153]: Image data provided by Pexels.
+    - link "En-Visioning Solutions, redirects to my personal site" [ref=e155] [cursor=pointer]:
+      - /url: https://www.en-visioningsolutions.com
+      - img "En-Visioning Solutions, redirects to my personal site" [ref=e156]
+  - alert [ref=e157]
+```

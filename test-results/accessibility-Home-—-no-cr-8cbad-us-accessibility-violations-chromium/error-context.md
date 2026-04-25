@@ -1,0 +1,121 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link "Watch Shop" [ref=e5] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e7]:
+        - img [ref=e8]
+        - textbox "Search watches..." [ref=e10]
+      - generic [ref=e11]:
+        - link "Products" [ref=e12] [cursor=pointer]:
+          - /url: /products
+        - link "About" [ref=e13] [cursor=pointer]:
+          - /url: /about
+        - button "Open cart" [ref=e14]:
+          - img [ref=e15]
+        - link "Admin" [ref=e17] [cursor=pointer]:
+          - /url: /admin/login
+  - main [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - heading "Timeless Elegance in Your Pocket Or On You're Wrist" [level=1] [ref=e21]
+        - paragraph [ref=e22]: Discover our curated collection of premium watches, crafted for those who appreciate sophistication and precision.
+        - link "Shop the Collection" [ref=e23] [cursor=pointer]:
+          - /url: /products
+          - button "Shop the Collection" [ref=e24]
+      - img "Luxury watch" [ref=e26]
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - heading "Pocket Watches" [level=2] [ref=e30]
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - link "Anul Silver Anul Silver $160 18 in stock" [ref=e33] [cursor=pointer]:
+              - /url: /product/6992965f8203e7e4a3de069c
+              - generic [ref=e34]:
+                - img "Anul Silver" [ref=e35]
+                - heading "Anul Silver" [level=3] [ref=e36]
+                - paragraph [ref=e37]: $160
+                - paragraph [ref=e38]: 18 in stock
+            - button "Add to Cart" [ref=e39]
+          - generic [ref=e40]:
+            - link "Amber Summer Amber Summer $60 20 in stock" [ref=e41] [cursor=pointer]:
+              - /url: /product/699298b58203e7e4a3de069e
+              - generic [ref=e42]:
+                - img "Amber Summer" [ref=e43]
+                - heading "Amber Summer" [level=3] [ref=e44]
+                - paragraph [ref=e45]: $60
+                - paragraph [ref=e46]: 20 in stock
+            - button "Add to Cart" [ref=e47]
+        - link "View all →" [ref=e49] [cursor=pointer]:
+          - /url: /category/pocket-watches
+      - generic [ref=e50]:
+        - heading "Smart Watches" [level=2] [ref=e51]
+        - generic [ref=e52]:
+          - generic [ref=e53]:
+            - link "Ajul Smart Watch Ajul Smart Watch $60 26 in stock" [ref=e54] [cursor=pointer]:
+              - /url: /product/69926fa98203e7e4a3de0696
+              - generic [ref=e55]:
+                - img "Ajul Smart Watch" [ref=e56]
+                - heading "Ajul Smart Watch" [level=3] [ref=e57]
+                - paragraph [ref=e58]: $60
+                - paragraph [ref=e59]: 26 in stock
+            - button "Add to Cart" [ref=e60]
+          - generic [ref=e61]:
+            - link "Azur Comet Smart Watch Azur Comet Smart Watch $70 100 in stock" [ref=e62] [cursor=pointer]:
+              - /url: /product/699272928203e7e4a3de0697
+              - generic [ref=e63]:
+                - img "Azur Comet Smart Watch" [ref=e64]
+                - heading "Azur Comet Smart Watch" [level=3] [ref=e65]
+                - paragraph [ref=e66]: $70
+                - paragraph [ref=e67]: 100 in stock
+            - button "Add to Cart" [ref=e68]
+        - link "View all →" [ref=e70] [cursor=pointer]:
+          - /url: /category/smart-watch
+      - generic [ref=e71]:
+        - heading "Wrist Watches" [level=2] [ref=e72]
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - link "Bravn Bravn $60 8 in stock" [ref=e75] [cursor=pointer]:
+              - /url: /product/6992b8698203e7e4a3de06a2
+              - generic [ref=e76]:
+                - img "Bravn" [ref=e77]
+                - heading "Bravn" [level=3] [ref=e78]
+                - paragraph [ref=e79]: $60
+                - paragraph [ref=e80]: 8 in stock
+            - button "Add to Cart" [ref=e81]
+          - generic [ref=e82]:
+            - link "Mikealson Mikealson $40 20 in stock" [ref=e83] [cursor=pointer]:
+              - /url: /product/6992b5bc8203e7e4a3de06a1
+              - generic [ref=e84]:
+                - img "Mikealson" [ref=e85]
+                - heading "Mikealson" [level=3] [ref=e86]
+                - paragraph [ref=e87]: $40
+                - paragraph [ref=e88]: 20 in stock
+            - button "Add to Cart" [ref=e89]
+        - link "View all →" [ref=e91] [cursor=pointer]:
+          - /url: /category/wrist-watch
+  - contentinfo [ref=e92]:
+    - generic [ref=e93]:
+      - link "Privacy Policy" [ref=e94] [cursor=pointer]:
+        - /url: /privacy-policy
+      - link "VPAT" [ref=e95] [cursor=pointer]:
+        - /url: /
+      - link "Accessibility Statement" [ref=e96] [cursor=pointer]:
+        - /url: /accessibility-statement
+      - link "Terms of Service" [ref=e97] [cursor=pointer]:
+        - /url: /terms-of-service
+      - link "Contact" [ref=e98] [cursor=pointer]:
+        - /url: /
+    - generic [ref=e99]:
+      - paragraph [ref=e100]: "[Ricardo Rodriguez En-visioning Solutions]"
+      - paragraph [ref=e101]: © 2026
+      - paragraph [ref=e102]: All rights reserved.
+      - paragraph [ref=e103]: Image data provided by Pexels.
+    - link "En-Visioning Solutions, redirects to my personal site" [ref=e105] [cursor=pointer]:
+      - /url: https://www.en-visioningsolutions.com
+      - img "En-Visioning Solutions, redirects to my personal site" [ref=e106]
+  - alert [ref=e107]
+```
