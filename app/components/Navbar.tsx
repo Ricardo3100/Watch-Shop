@@ -139,7 +139,7 @@ const Navbar = () => {
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-black font-bold hover:text-gray-600"
                   aria-label="Clear search"
                 >
                   <AiOutlineClose size={14} />
@@ -155,7 +155,7 @@ const Navbar = () => {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm text-gray-600 hover:text-black transition-colors"
+                className="text-sm text-black font-bold hover:text-black transition-colors"
               >
                 {link.label}
               </Link>
@@ -175,7 +175,7 @@ const Navbar = () => {
             </button>
             <Link
               href="/admin/login"
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-xs text-black font-bold hover:text-black transition-colors"
             >
               Admin
             </Link>
