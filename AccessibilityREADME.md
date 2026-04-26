@@ -123,8 +123,9 @@ for (const { name, path } of pages) {
 ---
 
 ## Step 5 — Run Tests Locally
+To test locally you have to do 2 things 1. run npm run start  then run this next command in a seperate terminal
 ```bash
-npx playwright test
+in a seperate terminal run this command : npx playwright test
 ```
 
 ---
@@ -174,3 +175,7 @@ accessibility-testing  →  PR  →  main (protected)
 - Vercel deploys automatically from `main`
 
 `main` is protected with a required PR rule. The status check requirement will be added after the GitHub Actions workflow runs for the first time.
+
+## View Reports
+to view reports run npx playwright test --reporter=html
+ in a seperate terminal after the build passes

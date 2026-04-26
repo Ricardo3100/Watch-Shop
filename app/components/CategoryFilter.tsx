@@ -21,14 +21,12 @@ export default function CategoryFilter({
   }
 
   return (
-    
     <div className="flex justify-center mb-6">
-
-      
       <select
         value={current}
         onChange={handleChange}
-        className="border border-gray-300 rounded-md px-4 py-2 text-sm text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-black"
+        aria-label="Filter products by category" // Added for accessibility
+        className="border border-black rounded-md px-4 py-2 text-sm text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-black"
       >
         <option value="">All Watches</option>
         {categories.map((cat) => (
@@ -42,5 +40,4 @@ export default function CategoryFilter({
         ))}
       </select>
     </div>
-  );
-}
+  );}
