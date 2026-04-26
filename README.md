@@ -1,5 +1,5 @@
 # 🛍️ Watch Shop — Ecommerce with Accessible Design + Secure Admin
-
+  test comment delete later
 **Intended use:**
 This repository is for personal learning, demonstrating accessible coding pipelines, and showcasing code during interviews or screen shares. While the MIT License allows others to copy and modify this code, it is not intended for commercial use without prior permission.
 
