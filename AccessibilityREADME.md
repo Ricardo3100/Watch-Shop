@@ -179,3 +179,38 @@ accessibility-testing  →  PR  →  main (protected)
 ## View Reports
 to view reports run npx playwright test --reporter=html
  in a seperate terminal after the build passes
+
+ ## Update testing ranch manually
+  For testing purposes when you have yet to automate the process of testing you will need to push the changes manually to your testing branch.   For this project specifically the testing branch is "accessibility-testing"
+
+## Step 1
+  Run this command in the  terminal to switch to the testing branch : git checkout accessibility-testing.
+
+  ## Step 2
+ Run git add .
+ 
+ ## Step 3 Run  git commit -m " commit message of what was fixed here "  for this particular testing case the original errors were low contrast and a select without a dicernable name so the mesage would be something like " fixed: color contrast and select aria-label accessibility violations"   
+ 
+ ## Step 4
+ then push to the branch : git push -u origin accessibility-testing
+
+## Step 5 Go to your git hub account and make a pull request
+ 1.click on compare and pull request
+  and approve it 
+
+  ## Step 6 
+  You will need to create a vercel token so you can put the vercel token in git hub secrets this createds a seperation v
+
+  ## Step 7 
+  you will need to run the vercel link in the terminal install it globallby by runnin sudo  npm i -g vercel 
+  # step  8 link the project in vs code to vercel via the command line
+
+  ## step 9 
+  run this command : cat .vercel/project.json
+this will give you the project id and org id which you will need for the next step.
+
+## Step 10
+You wil need to add the project id , org id and vercel toen to git hub secrets, go to the repo > secrets and variables > actions > new repository secret then add each of the three variables
+
+## Step 11
+Make 2 new folders . git hub and inside of that a workflows via command : mkdir -p .github/workflows in the core of the project for this project that is watchshop
