@@ -5,6 +5,7 @@ import Navbar from "./components/Navbar";
 import { StateContext } from "./context/statecontext";
 import { Toaster } from "react-hot-toast";
 import Footer from "./components/Footer";
+import Disclaimer from "./components/Disclaimer";
 const atkinson = Atkinson_Hyperlegible({
   subsets: ["latin"],
   weight: ["400", "700"], // regular + bold
@@ -27,6 +28,8 @@ export default function RootLayout({
       <body className={atkinson.className} suppressHydrationWarning>
         <StateContext>
           <Navbar />
+          <Disclaimer />
+
           {children}
           <Toaster position="bottom-center" />
           <Footer />
