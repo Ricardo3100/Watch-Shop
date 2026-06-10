@@ -57,10 +57,7 @@ export default function CheckoutPage() {
 
   return (
     <div>
-      <div className="bg-blue-900 text-white p-4 rounded-lg mb-6">
-        <strong>Demo Environment:</strong> This is a training project. No real
-        payments are processed and no orders will be shipped.
-      </div>
+    
       <div className="max-w-2xl mx-auto p-6">
         {/* ORDER SUMMARY */}
         <div className="mb-8 border-b pb-6">
