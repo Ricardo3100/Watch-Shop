@@ -214,3 +214,5 @@ You wil need to add the project id , org id and vercel toen to git hub secrets, 
 
 ## Step 11
 Make 2 new folders . git hub and inside of that a workflows via command : mkdir -p .github/workflows in the core of the project for this project that is watchshop
+
+<!-- delete this comment later -->
