@@ -61,14 +61,9 @@ export default function CheckoutPage() {
       <div className="max-w-2xl mx-auto p-6">
         {/* ORDER SUMMARY */}
         <div className="mb-8 border-b pb-6">
-          <h2 className="text-xl font-bold mb-4">
-            This site is a non-commercial demonstration project. It does not
-            process real payments or ship products. All payment interactions
-            occur in test mode, and any shipping information provided is used
-            only to simulate order processing and is not permanently stored.
-          </h2>
+    
 
-          <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+          <h2 className="text-xl text-center font-bold mb-4">Order Summary</h2>
 
           {cartItems.map((item) => (
             <div
