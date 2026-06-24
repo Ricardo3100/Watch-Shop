@@ -33,7 +33,7 @@ export default async function AdminOrdersPage() {
           <AiOutlineArrowLeft />
           Back to Dashboard
         </Link>
-        <Link href="/admin/shipping" className="flex items-center gap-2">
+        <Link href="/admin/dashboard/shipping" className="flex items-center gap-2">
           To Shipping
           <AiOutlineArrowRight />
         </Link>
