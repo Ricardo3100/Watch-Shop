@@ -20,8 +20,9 @@ export type AdminCredential = {
 // related to admin users and their
 // credentials for passkey authentication.
 export type Admin = {
-  _id: any;
+  _id?: any;
+
   credentials: AdminCredential[];
-  currentChallenge?: string | null;
+  currentChallenge?: string;
   name?: string;
 };

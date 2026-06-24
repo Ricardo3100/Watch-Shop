@@ -10,21 +10,19 @@ export async function POST(req: Request) {
 
   let existingAdmin = await admins.findOne({});
 
+if (!existingAdmin) {
+  const result = await admins.insertOne({
+    credentials: [],
+  });
+  existingAdmin = await admins.findOne({ _id: result.insertedId });
+
   if (!existingAdmin) {
-    const result = await admins.insertOne({
-      credentials: [],
-currentChallenge?: string | null;
-    });
-    existingAdmin = await admins.findOne({ _id: result.insertedId });
-
-    if (!existingAdmin) {
-      return NextResponse.json(
-        { error: "Failed to create admin account" },
-        { status: 500 },
-      );
-    }
+    return NextResponse.json(
+      { error: "Failed to create admin account" },
+      { status: 500 },
+    );
   }
-
+}
   // Only require auth if passkeys already exist
   const hasPasskeys =
     Array.isArray(existingAdmin.credentials) &&
