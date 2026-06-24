@@ -3,39 +3,24 @@ export const runtime = "nodejs";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { NextResponse } from "next/server";
 import { getAdminCollection } from "../../../lib/admincollections";
-import { isoBase64URL } from "@simplewebauthn/server/helpers";
 import { Binary } from "mongodb";
 import jwt from "jsonwebtoken";
+
 /**
  * POST /api/admin/authentication-verify
- * This endpoint verifies a WebAuthn passkey authentication attempt for the admin panel.
- *
- * Flow:
- * 1. Receive authentication response from browser (navigator.credentials.get)
- * 2. Lookup admin and credential in MongoDB
- * 3. Convert credential data into the format expected by @simplewebauthn/server
- * 4. Verify authentication response
- * 5. Update counter in MongoDB
- * 6. Return success/failure to client
  */
 export async function POST(req: Request) {
-  // Parse JSON body sent from browser
   const body = await req.json();
-
-  // Get MongoDB collection for admins
   const admins = await getAdminCollection();
 
-  // For simplicity, we assume there's only one admin document.
   const admin = (await admins.findOne({})) as
     | import("@/types/admin").Admin
     | null;
 
-  // Ensure admin exists
   if (!admin) {
     return NextResponse.json({ error: "No admin found" }, { status: 400 });
   }
 
-  // Ensure a challenge is in progress
   if (!admin.currentChallenge) {
     return NextResponse.json(
       { error: "No authentication in progress" },
@@ -43,15 +28,10 @@ export async function POST(req: Request) {
     );
   }
 
-  // 🔹 Find the stored credential matching the incoming credential ID
   const credential = admin.credentials.find(
-    // ID is base64url string
-    // delete any versioon later
-    // (cred: any) => cred.credentialID === body.id,
     (cred) => cred.credentialID === body.id,
   );
 
-  // If credential not found, reject
   if (!credential) {
     return NextResponse.json(
       { error: "Credential not found" },
@@ -60,28 +40,43 @@ export async function POST(req: Request) {
   }
 
   try {
-    // 🔹 Convert the stored publicKey (Mongo Binary) to Uint8Array for verification
     const publicKeyUint8 = new Uint8Array(
       (credential.publicKey as Binary).buffer,
     );
 
-    // 🔹 Verify the authentication response using @simplewebauthn/server
+    // ── DEFENSIVE ENVIRONMENT VARIABLE STRATEGY ──
+    // 1. Resolve naming variations between WEB_AUTH and WEBAUTHN
+    const rawOrigin =
+      process.env.WEB_AUTH_ORIGIN ||
+      process.env.WEB_AUTH_ORIGIN ||
+      "https://watch-shop.en-visioningsolutions.com";
+    const rawRPID =
+      process.env.WEB_AUTH_RP_ID ||
+      process.env.WEB_AUTH_RP_ID ||
+      "watch-shop.en-visioningsolutions.com";
+
+    // 2. Automatically trim off trailing slashes to prevent library crashes
+    const cleanOrigin = rawOrigin.trim().endsWith("/")
+      ? rawOrigin.trim().slice(0, -1)
+      : rawOrigin.trim();
+    const cleanRPID = rawRPID.trim().endsWith("/")
+      ? rawRPID.trim().slice(0, -1)
+      : rawRPID.trim();
+
     const verification = await verifyAuthenticationResponse({
-      response: body, // Browser response (rawId, clientDataJSON, signature, etc.)
-      expectedChallenge: admin.currentChallenge, // Challenge issued during login
-      expectedOrigin: process.env.WEBAUTHN_ORIGIN!, // Must match your domain
-      expectedRPID: process.env.WEBAUTHN_RP_ID!, // Must match your WebAuthn Relying Party ID
+      response: body,
+      expectedChallenge: admin.currentChallenge,
+      expectedOrigin: cleanOrigin,
+      expectedRPID: cleanRPID,
       credential: {
-        // v10+: Use 'credential' instead of 'authenticator'
-        id: credential.credentialID, // Base64url string stored in Mongo
-        publicKey: publicKeyUint8, // Converted Uint8Array
-        counter: Number(credential.counter), // Numeric counter to prevent replay
+        id: credential.credentialID,
+        publicKey: publicKeyUint8,
+        counter: Number(credential.counter),
       },
     });
 
     const { verified, authenticationInfo } = verification;
 
-    // If verification failed, return 400
     if (!verified) {
       return NextResponse.json(
         { error: "Authentication failed" },
@@ -89,8 +84,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔹 Update the stored counter and clear the challenge
-    // This prevents replay attacks with the same credential signature
     await admins.updateOne(
       { _id: admin._id, "credentials.credentialID": credential.credentialID },
       {
@@ -99,21 +92,30 @@ export async function POST(req: Request) {
       },
     );
 
-    // When Authentication succeeds,
-    // generate a JWT token for the admin session
+    // 3. Safe fallback check for JWT Secret instead of crashing blindly with !
+    const jwtSecret = process.env.ADMIN_JWT_SECRET;
+    if (!jwtSecret) {
+      console.error(
+        "CRITICAL ERROR: ADMIN_JWT_SECRET environment variable is missing!",
+      );
+      return NextResponse.json(
+        { error: "Internal server configuration error" },
+        { status: 500 },
+      );
+    }
+
     const token = jwt.sign(
       {
         adminId: admin._id.toString(),
         role: "admin",
-        name: admin.name || "Admin", // ✅ add this
+        name: admin.name || "Admin",
       },
-      process.env.ADMIN_JWT_SECRET!,
+      jwtSecret,
       { expiresIn: "2h" },
     );
 
     const response = NextResponse.json({ success: true });
 
-    // Set secure HTTP-only cookie
     response.cookies.set("admin_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -124,10 +126,7 @@ export async function POST(req: Request) {
 
     return response;
   } catch (err) {
-    // Log error for debugging
     console.error("Auth verify error:", err);
-
-    // Return generic error to client
     return NextResponse.json(
       { error: "Authentication error" },
       { status: 500 },
