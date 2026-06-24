@@ -12,14 +12,19 @@ export default function RegisterPage() {
       setLoading(true);
 
       // 1️⃣ Get registration challenge
-      const challengeRes = await fetch("/api/admin/registration-challenge", {
+      // 1️⃣ Get registration challenge options from your actual API route
+      const challengeRes = await fetch("/api/admin/registration-options", {
+        // 🌟 CHANGED THIS LINE
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
 
-      const options = await challengeRes.json();
+      if (!challengeRes.ok) {
+        throw new Error(`Server returned status ${challengeRes.status}`);
+      }
 
+      const options = await challengeRes.json();
       // 2️⃣ Start WebAuthn registration
       const credential = await startRegistration(options);
 
