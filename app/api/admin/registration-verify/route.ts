@@ -34,11 +34,28 @@ export async function POST(req: Request) {
   }
 
   try {
+    // ── DEFENSIVE ENVIRONMENT VARIABLE STRATEGY ──
+    // 1. Resolve naming variations between WEB_AUTH and WEBAUTHN
+    const rawOrigin =
+      process.env.WEB_AUTH_ORIGIN ||
+      process.env.WEBAUTHN_ORIGIN ||
+      "https://watch-shop.en-visioningsolutions.com";
+    const rawRPID =
+      process.env.WEB_AUTH_RP_ID ||
+      process.env.WEBAUTHN_RP_ID ||
+      "watch-shop.en-visioningsolutions.com";
+
+    // 2. Automatically trim off trailing slashes to prevent library crashes
+    const cleanOrigin = rawOrigin.endsWith("/")
+      ? rawOrigin.slice(0, -1)
+      : rawOrigin;
+    const cleanRPID = rawRPID.endsWith("/") ? rawRPID.slice(0, -1) : rawRPID;
+
     const verification = await verifyRegistrationResponse({
       response: body,
       expectedChallenge: admin.currentChallenge,
-      expectedOrigin: process.env.WEBAUTHN_ORIGIN!,
-      expectedRPID: process.env.WEBAUTHN_RP_ID!,
+      expectedOrigin: cleanOrigin,
+      expectedRPID: cleanRPID,
     });
 
     const { verified, registrationInfo } = verification;
@@ -63,7 +80,6 @@ export async function POST(req: Request) {
       {
         $push: {
           credentials: {
-            
             credentialID: credential.id,
             publicKey: new Binary(credential.publicKey),
             counter: credential.counter,
