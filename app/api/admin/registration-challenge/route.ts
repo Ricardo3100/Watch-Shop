@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (!existingAdmin) {
     const result = await admins.insertOne({
       credentials: [],
-      currentChallenge: null,
+currentChallenge?: string | null;
     });
     existingAdmin = await admins.findOne({ _id: result.insertedId });
 

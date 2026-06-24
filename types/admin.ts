@@ -22,6 +22,6 @@ export type AdminCredential = {
 export type Admin = {
   _id: any;
   credentials: AdminCredential[];
-  currentChallenge?: string;
+  currentChallenge?: string | null;
   name?: string;
 };
