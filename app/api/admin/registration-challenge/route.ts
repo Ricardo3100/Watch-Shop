@@ -4,30 +4,36 @@ import { getAdminCollection } from "../../../lib/admincollections";
 import { verifyAdminApi } from "../../../lib/verifyadmin";
 
 export async function POST(req: Request) {
-  // 🔐 Must be logged in to register a new passkey
-  const auth = await verifyAdminApi();
-  if (!auth.ok) return auth.response; // ← use .ok and .response
-
   const { name } = await req.json();
 
-const admins = await getAdminCollection();
-const existingAdmin = await admins.findOne({});
+  const admins = await getAdminCollection();
 
+  let existingAdmin = await admins.findOne({});
 
   if (!existingAdmin) {
-  return NextResponse.json(
-    { error: "No admin account found" },
-    { status: 400 },
-  );
-}
+    const result = await admins.insertOne({
+      credentials: [],
+      currentChallenge: null,
+    });
+    existingAdmin = await admins.findOne({ _id: result.insertedId });
 
-// Only require auth if passkeys already exist
-const hasPasskeys = existingAdmin.credentials?.length > 0;
-if (hasPasskeys) {
-  const auth = await verifyAdminApi();
-  if (!auth.ok) return auth.response; // ← also fix this line
-}
+    if (!existingAdmin) {
+      return NextResponse.json(
+        { error: "Failed to create admin account" },
+        { status: 500 },
+      );
+    }
+  }
 
+  // Only require auth if passkeys already exist
+  const hasPasskeys =
+    Array.isArray(existingAdmin.credentials) &&
+    existingAdmin.credentials.length > 0;
+
+  if (hasPasskeys) {
+    const auth = await verifyAdminApi();
+    if (!auth.ok) return auth.response;
+  }
   // ── DEFENSIVE ENVIRONMENT VARIABLE STRATEGY ──
   // 1. Resolve naming variations and apply safe, rock-solid hardcoded fallbacks
   const resolvedRPName =
