@@ -24,11 +24,11 @@ export async function POST(req: Request) {
   // 1. Resolve naming variations and apply safe, rock-solid hardcoded fallbacks
   const resolvedRPName =
     process.env.WEB_AUTH_RP_NAME ||
-    process.env.WEBAUTHN_RP_NAME ||
+    process.env.WEB_AUTHN_RP_NAME ||
     "En-Visioning Solutions Watch Shop";
   const resolvedRPID =
     process.env.WEB_AUTH_RP_ID ||
-    process.env.WEBAUTHN_RP_ID ||
+    process.env.WEB_AUTHN_RP_ID ||
     "watch-shop.en-visioningsolutions.com";
 
   // 2. Automatically trim off any accidental trailing slashes to keep the browser happy

@@ -38,11 +38,11 @@ export async function POST(req: Request) {
     // 1. Resolve naming variations between WEB_AUTH and WEBAUTHN
     const rawOrigin =
       process.env.WEB_AUTH_ORIGIN ||
-      process.env.WEBAUTHN_ORIGIN ||
+      process.env.WEB_AUTHN_ORIGIN ||
       "https://watch-shop.en-visioningsolutions.com";
     const rawRPID =
       process.env.WEB_AUTH_RP_ID ||
-      process.env.WEBAUTHN_RP_ID ||
+      process.env.WEB_AUTHN_RP_ID ||
       "watch-shop.en-visioningsolutions.com";
 
     // 2. Automatically trim off trailing slashes to prevent library crashes
