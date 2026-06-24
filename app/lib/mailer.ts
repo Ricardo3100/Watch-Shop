@@ -189,8 +189,28 @@ const sendSmtpEmail = new SendSmtpEmail();
         </a>
       </div>
 
+ 
+ <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #0055cc; text-transform: uppercase; letter-spacing: 1px;">
+         Demo Transparency Notice
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #333;">
+          This is a portfolio demonstration project.
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #333;">
+          As part of our privacy commitment, this email marks the end 
+          of your demo transaction. All personal information associated 
+          with this order — including your name, email address, and 
+          shipping address — has now been permanently deleted from our 
+          system.
+        </p>
+        <p style="margin: 0; font-size: 14px; color: #333; font-weight: bold;">
+          We do not store your data. We do not sell your data.
+          This notice confirms that deletion is complete.
+        </p>
+      </div>
+
       <p style="color: #999; font-size: 13px;">
-        If you have any questions about your shipment please reply to this email.
+        Thank you for helping test this project.
       </p>
 
     </div>
