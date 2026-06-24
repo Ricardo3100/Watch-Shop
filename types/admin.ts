@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 export type AdminCredential = {
   credentialID: string;
   _id?: ObjectId;
-  
+
   // add more later if needed
   publicKey: Binary;
   transports: string[];
@@ -16,14 +16,12 @@ export type AdminCredential = {
   deviceEmoji: string;
   createdAt: Date;
 };
-// This file defines TypeScript types 
-// related to admin users and their 
+// This file defines TypeScript types
+// related to admin users and their
 // credentials for passkey authentication.
 export type Admin = {
-   _id: any;
+  _id: any;
   credentials: AdminCredential[];
   currentChallenge?: string;
   name?: string;
 };
-
-
