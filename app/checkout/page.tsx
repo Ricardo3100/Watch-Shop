@@ -166,15 +166,7 @@ export default function CheckoutPage() {
                 Select a country
               </option>
               <option value="US">United States</option>
-              <option value="CA">Canada</option>
-              <option value="GB">United Kingdom</option>
-              <option value="AU">Australia</option>
-              <option value="DE">Germany</option>
-              <option value="FR">France</option>
-              <option value="JP">Japan</option>
-              <option value="MX">Mexico</option>
-              <option value="NL">Netherlands</option>
-              <option value="IT">Italy</option>
+           
             </select>
 
             <button
