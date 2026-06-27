@@ -30,7 +30,7 @@ const Footer = () => {
           <img
             height={50}
             width={150}
-            src="/assets/images/envisioningsolutionslogo.png"
+            src="/assets/images/en-visioning-solutions-logo-dark.png"
             alt="En-Visioning Solutions, redirects to my personal site"
           />
         </Link>

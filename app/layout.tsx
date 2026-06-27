@@ -5,6 +5,8 @@ import Navbar from "./components/Navbar";
 import { StateContext } from "./context/statecontext";
 import { Toaster } from "react-hot-toast";
 import Footer from "./components/Footer";
+import { Analytics } from "@vercel/analytics/next";
+
 import Disclaimer from "./components/Disclaimer";
 const atkinson = Atkinson_Hyperlegible({
   subsets: ["latin"],
@@ -29,7 +31,7 @@ export default function RootLayout({
         <StateContext>
           <Navbar />
           <Disclaimer />
-
+<Analytics/>
           {children}
           <Toaster position="bottom-center" />
           <Footer />
